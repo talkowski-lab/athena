@@ -8,6 +8,16 @@ Distributed under terms of the [MIT License](/LICENSE) (see `LICENSE`).
 
 ## Table of Contents
 
+#### Getting started
+  * [Run Athena with Docker](https://github.com/talkowski-lab/athena#run-from-docker)
+  * [Manual Installation](https://github.com/talkowski-lab/athena#manual-installation)
+
+#### The Athena workflow
+
+#### Other
+  * [About the name](https://github.com/talkowski-lab/athena#about-the-name)
+
+
 ---  
 
 ## Run from Docker
@@ -29,7 +39,7 @@ $ cd athena
 $ pip install -e .
 ```
 
-## Available commands
+## The Athena workflow
 
 _Coming soon!_
 
