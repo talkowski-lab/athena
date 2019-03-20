@@ -10,23 +10,47 @@ Athena: a toolkit for exploring structural variation mutation rates and dosage s
 
 
 import click
+from .utils import commands as utils_commands
+from .mutrate import commands as mutrate_commands
+from .dosage import commands as dosage_commands
+
+
+# Utility functions
+@click.group(name='General utilities')
+def utilscli():
+    """
+    General utilities
+    """
+    pass
+
+utilscli.add_command(utils_commands.filtervcf)
+utilscli.add_command(utils_commands.makebins)
+utilscli.add_command(utils_commands.countsv)
+
+# Mutation rate modeling functions
+@click.group(name='Mutation rate modeling')
+def mutratecli():
+    """
+    Mutation rate modeling
+    """
+    pass
+
+mutratecli.add_command(mutrate_commands.annotatebins)
+mutratecli.add_command(mutrate_commands.annodecomp)
+
+# Dosage sensitivity modeling functions
+@click.group(name='Dosage sensitivity modeling')
+def dosagecli():
+    """
+    Dosage sensitivity modeling
+    """
+    pass
+
+dosagecli.add_command(dosage_commands.mutquery)
 
 
 # Top-level click command group for cli
-@click.group()
-def cli():
-    pass
-
-@click.command(name='filter-vcf')
-def filtervcf():
-    click.echo('Filter input vcf (in development)')
-
-@click.command(name='make-bins')
-def makebins():
-    click.echo('Create bins (in development)')
-
-cli.add_command(filtervcf)
-cli.add_command(makebins)
+cli = click.CommandCollection(sources=[utilscli, mutratecli, dosagecli])
 
 
 # Main block

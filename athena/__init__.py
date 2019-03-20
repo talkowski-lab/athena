@@ -1,6 +1,4 @@
 from pkg_resources import get_distribution
-import athena.cli
-
-__all__ = []
+from athena.cli import master
 
 __version__ = get_distribution('athena').version
