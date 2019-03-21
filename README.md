@@ -180,6 +180,34 @@ Based on this logic along with some approximate rounding, we can decide on the t
 
 --- 
 
+### Step 3
+**Create bins for mutation rate model training**  
+The next step is to segment the genome into sequential, uniform bins.  
+
+These bins will only be used for training the mutation rate model. Once trained, you can extend the mutation rate model beyond this subset of training bins.  
+
+Following [the example from step 2](https://github.com/talkowski-lab/athena#step-2) (above), we can generate 4kb bins for all autosomes using `athena make-bins`.  
+
+We can also introduce any number of `--blacklist` BED files, which will exclude bins overlapping the blacklist(s) from being included in model training. We can also apply a buffer around the elements in the blacklists. For this example, we will exclude all bins within ±4kb of the intervals used for SV blacklisting ([see step 1](https://github.com/talkowski-lab/athena#step-1), above) as well as all bins overlapping any unalignable (i.e., N-masked) regions of the reference genome.  
+
+We can create these bins as follows:
+```
+athena make-bins -z \
+	-x data/athena.SV_selection_blacklist.v1.GRCh37.bed.gz \
+	-x GRCh37_Nmask.bed.gz \
+	--buffer 4000 \
+	--exclude-chroms X,Y,M \
+	GRCh37.genome \
+	4000 \
+	~/scratch/athena_bins.bed.gz
+```
+
+Where:
+  * `GRCh37_Nmask.bed.gz` is a BED file containing all N-masked regions of the reference genome. This file is available from numerous sources, including [UCSC](https://genome.ucsc.edu).  
+  * `GRCh37.genome` is a two-column, tab-delimited file [per BEDTools spec](https://bedtools.readthedocs.io/en/latest/content/tools/genomecov.html).  
+
+--- 
+
 ### A note on design
 This package was designed with [the gnomAD-SV callset](https://gnomad.broadinstitute.org/downloads) in mind. To that end, it assumes input data follows gnomAD-SV formatting standards. This may cause issues for alternative styles of SV representation, or different metadata labels. If using non-gnomAD data with Athena, please compare your VCF formatting standards, and the `INFO` field in particular.  
 

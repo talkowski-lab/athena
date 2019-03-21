@@ -24,7 +24,7 @@ ENV PATH /opt/conda/envs/olympus/bin:$PATH
 # Clone & install Athena
 RUN git clone https://c9f6da1fb0dd9d5379c313700a1083f9633be849@github.com/talkowski-lab/athena /opt/athena \
     && cd /opt/athena \
-    && git checkout e9d202b45bdf58a48ab38a24f44f1a142dcafe5b \
+    && git checkout 4298eca8e181904d8fb3812ccf6918adcf6e4d6f \
     && cd -
 RUN cd /opt/athena \
     && pip install -e .

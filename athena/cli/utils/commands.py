@@ -72,13 +72,38 @@ def vcfstats(vcf, quantiles):
     """
     utils.vcf_stats(vcf, quantiles)
 
+
 # Bin creation
 @click.command(name='make-bins')
-def makebins():
+@click.argument('genome', type=click.Path(exists=True))
+@click.argument('binsize', type=int)
+@click.argument('outfile')
+@click.option('-x', '--blacklist', default=None, multiple=True,
+              help='BED file of regions to exclude, based on bin overlap. ' + 
+              'This may be specified multiple times. [default: None]')
+@click.option('--buffer', type=int, default=0,
+              help='Pad blacklist intervals prior to intersection. If multiple ' + 
+              'blacklists are specified, elements from each blacklist will be ' + 
+              'padded separately. [default: None]')
+@click.option('--exclude-chroms', 'xchroms', default=None, 
+              help='Chromosomes to exclude (comma-separated) ' + 
+              '[default: exclude no chromosomes]')
+@click.option('-z', '--bgzip', is_flag=True, default=False, 
+              help='Compress output with bgzip')
+def makebins(genome, binsize, outfile, blacklist, buffer, xchroms, bgzip):
     """
-    Create bins
+    Create sequential bins
     """
-    click.echo('Create bins (in dev.)')
+    utils.make_bins(genome, binsize, outfile, blacklist, buffer, xchroms, bgzip)
+
+
+# Pair bins
+@click.command(name='pair-bins')
+def pair():
+    """
+    Pair bins
+    """
+    click.echo('Pair bins (in dev.)')
 
 
 # Intersect SVs and bins
