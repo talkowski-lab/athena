@@ -170,7 +170,7 @@ SV size quantiles:
 
 From these data, we can see that about 99% of all deletions in the training set are smaller than 42kb, which means that we probably do not need to extend the training of our 2D model beyond 40kb to capture almost all of the informative 2D signal.  
 
-We can also observe that roughly half of all deletions are no farther than a few kilobases away from the next-nearest deletion, which means that bin sizes of several kilobases should result in adequately dense training data.  
+We can also observe that roughly half of all deletions are no farther than a few kilobases away from the next-nearest deletion, which means that bin sizes of several kilobases should result in reasonably dense training data.  
 
 Based on this logic along with some approximate rounding, we can decide on the two key parameters used in the remaining steps of the mutation rate model:
 ```
