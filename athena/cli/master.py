@@ -24,6 +24,7 @@ def utilscli():
     pass
 
 utilscli.add_command(utils_commands.filtervcf)
+utilscli.add_command(utils_commands.vcfstats)
 utilscli.add_command(utils_commands.makebins)
 utilscli.add_command(utils_commands.countsv)
 

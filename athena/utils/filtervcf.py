@@ -10,13 +10,16 @@ Filter an input VCF
 
 
 import pysam
-import sys
-import os
+from sys import stdin, stdout, exit
+from os import path
+import pybedtools
+# import pandas as pd
 from athena.utils.misc import bgzip as bgz
 from athena.utils.misc import hwe_chisq
 
 
-def filter_vcf(vcf, out, chroms, svtypes, minAF, maxAF, minAC, maxAC, filters, 
+def filter_vcf(vcf, out, chroms, xchroms, svtypes, blacklist, 
+               minAF, maxAF, minAC, maxAC, filters, 
                minQUAL, maxQUAL, HWE, keep_infos, bgzip):
 
     # Open connection to input VCF
@@ -43,12 +46,17 @@ def filter_vcf(vcf, out, chroms, svtypes, minAF, maxAF, minAC, maxAC, filters,
         outvcf = pysam.VariantFile(sys.stdout, 'w', header=header)
     else:
         if '.gz' in out:
-            out = os.path.splitext(out)[0]
+            out = path.splitext(out)[0]
         outvcf = pysam.VariantFile(out, 'w', header=header)
 
     # Parse filtering options
     if chroms is not None:
         chroms = chroms.split(',')
+    else:
+        chroms = header.contigs.keys()
+    if xchroms is not None:
+        xchroms = xchroms.split(',')
+        chroms = [c for c in chroms if c not in xchroms]
     if svtypes is not None:
         if 'SVTYPE' not in header.info.keys():
             sys.exit('SVTYPE filtering was specified, but input VCF ' +
@@ -57,6 +65,9 @@ def filter_vcf(vcf, out, chroms, svtypes, minAF, maxAF, minAC, maxAC, filters,
             svtypes = svtypes.split(',')
     if filters is not None:
         filters = filters.split(',')
+    if blacklist is not None:
+        bl = pybedtools.BedTool(blacklist)
+        # bl = pd.read_csv(blacklist, sep='\t', names='chrom start end'.split())
 
     # Raise warning if AF or AC are missing from VCF
     for key in 'AF AC'.split():
@@ -85,6 +96,10 @@ def filter_vcf(vcf, out, chroms, svtypes, minAF, maxAF, minAC, maxAC, filters,
         # Filter by svtype
         if svtypes is not None \
         and record.info['SVTYPE'] not in svtypes:
+            continue
+
+        # Exclude records where end < start
+        if record.stop < record.start:
             continue
 
         # Filter by AF/AC
@@ -130,6 +145,12 @@ def filter_vcf(vcf, out, chroms, svtypes, minAF, maxAF, minAC, maxAC, filters,
         # Write filter-passing records to output VCF
         outvcf.write(record)
 
+    outvcf.close()
+
+    # Filter remaining records against blacklist
+    if blacklist is not None:
+        prebl_vcf = pybedtools.BedTool(out)
+        prebl_vcf.intersect(bl, header=True, v=True).saveas(out)
 
     # Bgzip output VCF, if optioned
     if bgzip:
