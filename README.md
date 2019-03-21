@@ -11,10 +11,12 @@ Distributed under terms of the [MIT License](/LICENSE) (see `LICENSE`).
 #### Getting started
   * [Run Athena with Docker](https://github.com/talkowski-lab/athena#run-from-docker)
   * [Manual Installation](https://github.com/talkowski-lab/athena#manual-installation)
+  * [Invoking Athena](https://github.com/talkowski-lab/athena#invoking-athena)
 
 #### The Athena workflow
 _Mutation rate modeling_ 
   1. [Filter SVs for mutation rate training](https://github.com/talkowski-lab/athena#step-1)  
+  2. [Calculate SV size & spacing distributions](https://github.com/talkowski-lab/athena#step-2) (Optional)   
 
 _Dosage sensitivity modeling_  
 
@@ -44,6 +46,60 @@ $ cd athena
 $ pip install -e .
 ```
 
+## Invoking Athena
+
+Athena is called from the command line:
+```
+$ athena --help
+Usage: athena [OPTIONS] COMMAND [ARGS]...
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  annotate    Annotate bins
+  count-sv    Intersect SV and bins
+  decomp      Decompose bin annotations
+  make-bins   Create bins
+  query       Mutation rate lookup
+  vcf-filter  Filter an input VCF
+  vcf-stats   Get SV size & spacing
+```
+
+Athena has numerous subcommands. Specify `--help` with any subcommand to see a list of options available. For example:
+```
+$ athena vcf-filter --help
+Usage: athena vcf-filter [OPTIONS] VCF OUT
+
+  Filter an input VCF
+
+Options:
+  --include-chroms TEXT  Chromosomes to include (comma-separated) [default:
+                         include all chromosomes]
+  --exclude-chroms TEXT  Chromosomes to exclude (comma-separated) [default:
+                         exclude no chromosomes]
+  --svtypes TEXT         SV classes to include (comma-separated) [default: all
+                         SVs]
+  -x, --blacklist TEXT   BED file of regions to exclude, based on SV overlap
+                         [default: None]
+  --minAF FLOAT          Minimum allowed allele frequency [default: 0]
+  --maxAF FLOAT          Maximum allowed allele frequency [default: 1.0]
+  --minAC INTEGER        Minimum allowed allele count [default: 0]
+  --maxAC INTEGER        Maximum allowed allele count [default: None]
+  --vcf-filters TEXT     VCF FILTER statuses to be included [default: PASS]
+  --minQUAL INTEGER      Minimum allowed QUAL score [default: 0]
+  --maxQUAL INTEGER      Maximum allowed QUAL score [default: None]
+  --pHWE FLOAT           Minimum Hardy-Weinberg equilibrium p-value to include
+                         [default: Do not filter on HWE]
+  --keep-infos TEXT      INFO fields to retain in output VCF (comma-
+                         separated). Will always retain the following: END,
+                         CHR2, SVTYPE, SVLEN. Specifying "ALL" will keep all
+                         INFO. Note: this does _not_ filter records based on
+                         INFO. [default: Keep no other INFO]
+  -z, --bgzip            Compress output with bgzip
+  --help                 Show this message and exit.
+```
+
 --- 
 
 # The Athena workflow
@@ -59,7 +115,7 @@ Conceptually, this filtering step aims to accomplish a few points:
 2. Restrict to a subset of near-neutral variants, as these will limit the degree to which selection confounds mutation rate estimates  
 3. Restrict to high-quality variants to reduce the influence of purely technical factors in mutation rate estimates  
 
-For instance, from the [gnomAD-SV v2 dataset](https://gnomad.broadinstitute.org/downloads) (`gnomad_v2_sv.sites.vcf.gz`), you could run the following:  
+For instance, to generate a training set of deletions from the [gnomAD-SV v2 dataset](https://gnomad.broadinstitute.org/downloads) (`gnomad_v2_sv.sites.vcf.gz`) for a deletion mutation rate model, you could run the following:  
 ```
 $ athena vcf-filter -z \
 	--exclude-chroms X,Y \
@@ -114,7 +170,7 @@ SV size quantiles:
 
 From these data, we can see that about 99% of all deletions in the training set are smaller than 42kb, which means that we probably do not need to extend the training of our 2D model beyond 40kb to capture almost all of the informative 2D signal.  
 
-We can also observe that roughly half of all deletions are no farther than a few kilobases away from the next-nearest deletion, which means that bin sizes of several kilobases should result in adequately dense data.  
+We can also observe that roughly half of all deletions are no farther than a few kilobases away from the next-nearest deletion, which means that bin sizes of several kilobases should result in adequately dense training data.  
 
 Based on this logic along with some approximate rounding, we can decide on the two key parameters used in the remaining steps of the mutation rate model:
 ```
