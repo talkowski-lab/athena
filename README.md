@@ -17,7 +17,8 @@ Distributed under terms of the [MIT License](/LICENSE) (see `LICENSE`).
 _Mutation rate modeling_ 
   1. [Filter SVs for mutation rate training](https://github.com/talkowski-lab/athena#step-1)  
   2. [Calculate SV size & spacing distributions](https://github.com/talkowski-lab/athena#step-2) (Optional)   
-  3. [Create training bins](https://github.com/talkowski-lab/athena#step-3)    
+  3. [Create training bins](https://github.com/talkowski-lab/athena#step-3)   
+  4. [Annotate training bins](https://github.com/talkowski-lab/athena#step-4)  
 
 _Dosage sensitivity modeling_  
 
@@ -195,7 +196,7 @@ We can create these bins as follows:
 ```
 athena make-bins -z \
 	-x data/athena.SV_selection_blacklist.v1.GRCh37.bed.gz \
-	-x GRCh37_Nmask.bed.gz \
+	-x GRCh37.Nmask.bed.gz \
 	--buffer 4000 \
 	--exclude-chroms X,Y,M \
 	GRCh37.genome \
@@ -204,8 +205,18 @@ athena make-bins -z \
 ```
 
 Where:
-  * `GRCh37_Nmask.bed.gz` is a BED file containing all N-masked regions of the reference genome. This file is available from numerous sources, including [UCSC](https://genome.ucsc.edu).  
+  * `GRCh37.Nmask.bed.gz` is a BED file containing all N-masked regions of the reference genome. This file is available from numerous sources, including [UCSC](https://genome.ucsc.edu).  
   * `GRCh37.genome` is a two-column, tab-delimited file [per BEDTools spec](https://bedtools.readthedocs.io/en/latest/content/tools/genomecov.html).  
+
+--- 
+
+### Step 4
+**Annotate training bins**  
+Once the genome has been segmented into sequential, uniform bins (see instructions in [step 3](https://github.com/talkowski-lab/athena#step-3)), we next must annotate these bins with any features to be considered in mutation rate modeling.  
+
+Athena has functionality to apply annotations from local `bed` files, as well as a native interface to all tracks available from the [UCSC Genome Browser](https://genome.ucsc.edu/cgi-bin/hgTables).  
+
+This functionality is currently in development, and will be updated with instructions as they mature.  
 
 --- 
 
