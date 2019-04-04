@@ -17,6 +17,7 @@ Distributed under terms of the [MIT License](/LICENSE) (see `LICENSE`).
 _Mutation rate modeling_ 
   1. [Filter SVs for mutation rate training](https://github.com/talkowski-lab/athena#step-1)  
   2. [Calculate SV size & spacing distributions](https://github.com/talkowski-lab/athena#step-2) (Optional)   
+  3. [Create training bins](https://github.com/talkowski-lab/athena#step-3)    
 
 _Dosage sensitivity modeling_  
 
@@ -181,7 +182,7 @@ Based on this logic along with some approximate rounding, we can decide on the t
 --- 
 
 ### Step 3
-**Create bins for mutation rate model training**  
+**Create training bins**  
 The next step is to segment the genome into sequential, uniform bins.  
 
 These bins will only be used for training the mutation rate model. Once trained, you can extend the mutation rate model beyond this subset of training bins.  
@@ -199,7 +200,7 @@ athena make-bins -z \
 	--exclude-chroms X,Y,M \
 	GRCh37.genome \
 	4000 \
-	~/scratch/athena_bins.bed.gz
+	athena_training_bins.bed.gz
 ```
 
 Where:
