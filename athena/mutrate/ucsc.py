@@ -119,12 +119,17 @@ def query_table(table, db, oformat='bed', query_ranges=None):
 def query_ucsc(bins, table, db, action, query_ranges):
 
     # Get raw data
-    if action in 'count count-unique coverage'.split():
+    if 'map-' in action:
+        result = query_table(table, db, 'bigwig', query_ranges)
+
+    elif action in 'count count-unique coverage'.split():
         result = query_table(table, db, 'bed', query_ranges)
         # Coerce to GRC nomenclature, if necessary
         if 'chr' not in bins[0]:
             result = result.each(_check_grc_compliance)
-    elif action in 'map-mean':
-        result = query_table(table, db, 'bigwig', query_ranges)
+
+    else:
+        from sys import exit
+        exit('ERROR: Unknown action "{0}" in ucsc.query_ucsc'.format(action))
 
     return result

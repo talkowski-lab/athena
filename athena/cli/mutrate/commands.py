@@ -36,7 +36,7 @@ from gzip import GzipFile
               'as tracks plus ucsc-tracks.',
               multiple=True, 
               type=click.Choice(['count', 'count-unique', 'coverage',
-                                 'map-mean']))
+                                 'map-mean', 'map-sum', 'map-min', 'map-max']))
 @click.option('-n', '--track-names', default=None, help='Column names to assign to ' +
               'each new column in the header of the annotated bins file. ' +
               'Follows the same rules for ordering as --actions.',
@@ -48,10 +48,12 @@ from gzip import GzipFile
               'also generate fasta index if not already available locally.')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output with bgzip.')
+@click.option('--maxfloat', type=int, default=5, 
+              help='Maximum precision of floating-point values. [5]')
 @click.option('-q', '--quiet', is_flag=True, default=False, 
               help='Silence progress messages.')
 def annotatebins(bins, outfile, chroms, ranges, track, ucsc_track, ucsc_ref, 
-                 actions, track_names, fasta, bgzip, quiet):
+                 actions, track_names, fasta, maxfloat, bgzip, quiet):
     """
     Annotate bins
     """
@@ -71,7 +73,7 @@ def annotatebins(bins, outfile, chroms, ranges, track, ucsc_track, ucsc_ref,
     # Annotate bins
     newbins = mutrate.annotate_bins(bins, chroms, ranges, list(track), 
                                     list(ucsc_track), ucsc_ref, actions, fasta,
-                                    quiet)
+                                    maxfloat, quiet)
 
     # Save annotated bins
     if '.gz' in outfile:

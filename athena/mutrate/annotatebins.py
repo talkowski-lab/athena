@@ -11,8 +11,11 @@ Annotate a binned genome
 
 import pybedtools
 import pandas as pd
+from numpy import nan
 from datetime import datetime
 from athena.mutrate import ucsc
+import pyBigWig
+from os import path
 
 
 # Annotate bins with a single BedTool
@@ -40,25 +43,110 @@ def add_bedtool_track(bins, track, action):
 
 
 # Annotate bins from a bigWig or bigBed file
-# def add_bigwig_track(bins, track, action):
+def add_bigwig_track(bins, track, action):
+    
+    # Load bigWig track
+    bigwig = pyBigWig.open(track)
 
+    operation = action.replace('map-', '')
+
+    def _bw_lookup(interval, bigwig, operation='mean'):
+        if 'chr' in list(bigwig.chroms().keys())[0]:
+            if 'chr' not in interval.chrom:
+                interval.chrom = 'chr' + interval.chrom
+        if operation == 'sum':
+            val = bigwig.stats(interval.chrom, interval.start, interval.end, 'mean')[0]
+            if val is not None:
+                val = val * len(interval)
+        else:
+            val = bigwig.stats(interval.chrom, interval.start, interval.end, operation)[0]
+        return val
+
+    values = [_bw_lookup(f, bigwig, operation) for f in bins]
+
+    df = pd.read_csv(bins.fn, sep='\t', header=None)
+    df['newvals'] = values
+    bins = pybedtools.BedTool.from_dataframe(df)
+
+    return bins
+
+
+# Map a bed to bins, assuming column to map is last
+def map_bed_track(bins, track, action):
+
+    operation = action.replace('map-', '')
+
+    from sys import exit
+    exit("ERROR: {0} not currently supported for local BED input.".format(action))
+
+
+# Clean up long floats in last column of bins
+def float_cleanup(bins, maxfloat, start_idx):
+    df = pd.read_csv(bins.fn, sep='\t', header=None)
+    df.iloc[:, start_idx:] = df.iloc[:, start_idx:].replace('.',nan).apply(pd.to_numeric).round(maxfloat)
+    bins = pybedtools.BedTool.from_dataframe(df)
+
+    return bins
+
+
+# Wrapper function to add a single local track
+def add_local_track(bins, track, action, maxfloat, quiet):
+    if quiet is False:
+        status_msg = '[{0}] athena annotate-bins: Adding track "{1}" ' + \
+                     'with action "{2}"'
+        print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
+                                track, action))
+
+    if action in 'count count-unique coverage'.split():
+        bins = add_bedtool_track(bins, track, action)
+
+    elif 'map-' in action:
+        if path.splitext(track)[1] in '.bw .bigwig .bigWig .BigWig'.split():
+            bins = add_bigwig_track(bins, track, action)
+        else:
+            bins = map_bed_track(bins, track, action)
+
+    return bins
+
+
+# Wrapper function to add a single ucsc track
+def add_ucsc_track(bins, db, track, action, query_regions, maxfloat, quiet):
+    # Collect data from UCSC 
+    if ucsc.table_exists(db, track):
+        status_msg = '[{0}] athena annotate-bins: Adding UCSC track ' + \
+                     '"{1}" with action "{2}"'
+        print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
+                                track, action))
+        ures = ucsc.query_ucsc(bins, track, db, action, query_regions)
+    else:
+        from sys import exit
+        err = 'UCSC ERROR: Could not find table "{0}" for reference "{1}"'
+        exit(err.format(track, ucsc_ref))
+
+    # Add track to bins
+    if action in 'count count-unique coverage'.split():
+        bins = add_bedtool_track(bins, ures, action)
+
+    elif 'map-' in action:
+        bins = add_bigwig_track(bins, ures, action)
+
+    return bins
 
 
 # Annotate nucleotide content from a reference fasta
-def add_nuc_content(bins, fasta, quiet=False):
-
+def add_nuc_content(bins, fasta, maxfloat, quiet):
     bins.saveas()
     pct_gc = [f[4] for f in bins.cut(range(3)).nucleotide_content(fi=fasta)]
     df = pd.read_csv(bins.fn, sep='\t', header=None)
     df['pct_gc'] = pct_gc
     bins = pybedtools.BedTool.from_dataframe(df)
-    
+
     return bins
 
 
 # Master bin annotation function
 def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref, 
-                  actions, fasta, quiet):
+                  actions, fasta, maxfloat, quiet):
 
     # Parse & sanity check all track inputs
     n_all_tracks = len(tracks) + len(ucsc_tracks)
@@ -84,61 +172,35 @@ def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref,
         bins = bins.intersect(range, wa=True)
 
 
+    # Get count of columns in original bins
+    bins = bins.saveas()
+    n_cols_old = bins.field_count()
+
+
     # Annotate bins with all local tracks
     track_counter = 0
     if len(tracks) > 0:
         for track in tracks:
-
             action = actions[track_counter]
-
-            if quiet is False:
-                status_msg = '[{0}] athena annotate-bins: Adding track "{1}" ' + \
-                             'with action "{2}"'
-                print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
-                                        track, action))
-
-            bins = add_bedtool_track(bins, track, action)
-
+            bins = add_local_track(bins, track, action, maxfloat, quiet)
             track_counter += 1
 
 
     # Annotate bins with all UCSC tracks
     if len(ucsc_tracks) > 0:
-
-        # Get UCSC query regions
-        query_regions = ucsc.collapse_query_regions(bins)
-
-        # Connect to UCSC database
         if quiet is False:
             status_msg = '[{0}] athena annotate-bins: Connecting to UCSC ' + \
                          'Genome Browser database'
             print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
                                     fasta))
         db = ucsc.ucsc_connect(ucsc_ref)
+        query_regions = ucsc.collapse_query_regions(bins).saveas()
 
         # Iterate over tracks
         for track in ucsc_tracks:
-
             action = actions[track_counter]
-
-            # Collect data from UCSC 
-            if ucsc.table_exists(db, track):
-                status_msg = '[{0}] athena annotate-bins: Adding UCSC track ' + \
-                             '"{1}"" with action "{2}"'
-                print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
-                                        track, action))
-                ures = ucsc.query_ucsc(bins, track, db, action, query_regions)
-            else:
-                from sys import exit
-                err = 'UCSC ERROR: Could not find table "{0}" for reference "{1}"'
-                exit(err.format(track, ucsc_ref))
-
-            # Add track to bins
-            if action in 'count count-unique coverage'.split():
-                bins = add_bedtool_track(bins, ures, action)
-            elif 'map-' in action:
-                import pdb; pdb.set_trace()
-
+            bins = add_ucsc_track(bins, db, track, action, query_regions, 
+                                  maxfloat, quiet)
             track_counter += 1
 
         # Close UCSC connection
@@ -154,7 +216,11 @@ def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref,
             print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
                                     fasta))
 
-        bins = add_nuc_content(bins, fasta, quiet)
+        bins = add_nuc_content(bins, fasta, maxfloat, quiet)
+
+
+    # Clean up long floats
+    bins = float_cleanup(bins, maxfloat, start_idx=n_cols_old)
 
 
     return bins

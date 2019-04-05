@@ -120,15 +120,15 @@ Conceptually, this filtering step aims to accomplish a few points:
 For instance, to generate a training set of deletions from the [gnomAD-SV v2 dataset](https://gnomad.broadinstitute.org/downloads) (`gnomad_v2_sv.sites.vcf.gz`) for a deletion mutation rate model, you could run the following:  
 ```
 $ athena vcf-filter -z \
-	--exclude-chroms X,Y \
-	--svtypes DEL \
-	--blacklist data/athena.SV_selection_blacklist.v1.GRCh37.bed.gz \
-	--maxAF 0.01 \
-	--minAC 1 \
-	--minQUAL 100 \
-	--pHWE 0.01 \
-	gnomad_v2_sv.sites.vcf.gz \
-	athena_training_deletions.vcf.gz
+  	--exclude-chroms X,Y \
+  	--svtypes DEL \
+  	--blacklist data/athena.SV_selection_blacklist.v1.GRCh37.bed.gz \
+  	--maxAF 0.01 \
+  	--minAC 1 \
+  	--minQUAL 100 \
+  	--pHWE 0.01 \
+  	gnomad_v2_sv.sites.vcf.gz \
+  	athena_training_deletions.vcf.gz
 ```
 The above command will return a set of 129,033 rare, high-quality autosomal deletions from gnomAD-SV for training a deletion mutation rate model downstream.  
 
@@ -194,14 +194,14 @@ We can also introduce any number of `--blacklist` BED files, which will exclude 
 
 We can create these bins as follows:
 ```
-athena make-bins -z \
-	-x data/athena.SV_selection_blacklist.v1.GRCh37.bed.gz \
-	-x GRCh37.Nmask.bed.gz \
-	--buffer 4000 \
-	--exclude-chroms X,Y,M \
-	GRCh37.genome \
-	4000 \
-	athena_training_bins.bed.gz
+$ athena make-bins -z \
+  	-x data/athena.SV_selection_blacklist.v1.GRCh37.bed.gz \
+  	-x GRCh37.Nmask.bed.gz \
+  	--buffer 4000 \
+  	--exclude-chroms X,Y,M \
+  	GRCh37.genome \
+  	4000 \
+  	athena_training_bins.bed.gz
 ```
 
 Where:
@@ -214,11 +214,42 @@ Where:
 **Annotate training bins**  
 Once the genome has been segmented into sequential, uniform bins (see the [example in step 3](https://github.com/talkowski-lab/athena#step-3)), we next must annotate these bins with any features to be considered in mutation rate modeling.  
 
-Athena has functionality to apply annotations from local BEDTools-compatible file types (e.g., BED, VCF, etc.).
+Athena has a flexible interface to apply multiple annotations directly from various sources:  
 
-Athena also has a native interface to all tracks available from the [UCSC Genome Browser](https://genome.ucsc.edu/cgi-bin/hgTables).  
+| Track format | Source | Athena flag | Available actions |  
+| :--- | :--- | :--- | :--- |   
+| Any file compatible with BEDTools `coverage` or `intersect` (e.g., BED, VCF, GFF, etc.) | Local | `--track` | `--count`, `--count-unique`, `--coverage` |  
+| [BigWig](https://genome.ucsc.edu/goldenPath/help/bigWig.html) | Local *or remote<sup>1</sup>* | `--track` | `--map-mean`, `--map-sum`, `--map-min`, `--map-max` |  
+| [UCSC Genome Browser Tables](https://genome.ucsc.edu/cgi-bin/hgTables)<sup>2</sup> | Hosted by UCSC | `--ucsc-track` | `--count`, `--count-unique`, `--coverage` |  
+| [UCSC-Hosted BigWig Tracks](https://genome.ucsc.edu/cgi-bin/hgTables)<sup>2</sup> | Hosted by UCSC | `--ucsc-track` | `--map-mean`, `--map-sum`, `--map-min`, `--map-max` |  
 
-This functionality is currently in development, and will be updated with instructions as they mature.  
+#### Notes:
+ 1. If specifying a remote BigWig file, pass the full URL of the remote-hosted file to `--track`.  
+ 2. If any UCSC tracks are requested, the UCSC reference build must also be specified with `--ucsc-ref`.  
+
+The precise annotations added at this stage are up to the user.  
+
+For example, we could annotate the bins from [step 3 (above)](https://github.com/talkowski-lab/athena#step-3) with the following four tracks:
+ * Counts per bin vs. a custom local annotation file (`my_local_annotation.bed`)
+ * Average ovary expression level per bin from ENCODE (experiment )
+ * Maximum ovary chromatin accessibility score per bin from ENCODE (experiment [ENCSR542KIX](https://www.encodeproject.org/experiments/ENCSR542KIX/))  
+ * Coverage per bin by segmental duplications from UCSC (table `genomicSuperDups`)  
+ * Mean mapability of 100mers from UCSC (table `wgEncodeCrgMapabilityAlign24mer`, which links to a remote bigWig file)  
+
+We would add these four annotations to the bins on chromosome 18 from step 3 as follows:
+```
+$ athena annotate-bins -z \
+    --chroms 18 \
+    -t my_local_annotation.bed -a count -n my_annotation \
+    -t https://www.encodeproject.org/files/ENCFF845FHW/@@download/ENCFF845FHW.bigWig -a map-mean -n ovary_expression \
+    -t https://www.encodeproject.org/files/ENCFF416KSV/@@download/ENCFF416KSV.bigWig -a map-max -n ovary_peak_dnase \
+    -u genomicSuperDups -a coverage -n segdup \
+    -u wgEncodeCrgMapabilityAlign100mer -a map-sum -n mapability \
+    --ucsc-ref hg19 \
+    -z \
+    athena_training_bins.bed.gz \
+    athena_training_bins.annotated.bed.gz
+```
 
 --- 
 

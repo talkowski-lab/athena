@@ -9,15 +9,21 @@ MAINTAINER "Ryan Collins <rlcollins@g.harvard.edu>"
 
 # Install make and zlib
 RUN apt-get -qqy update \
-    && apt-get -qqy install --fix-missing build-essential zlib1g-dev
+    && apt-get -qqy install --fix-missing build-essential zlib1g-dev libcurl4-openssl-dev
 
 # Create python environment
+# Note: in practice, it's more sane to install packages one at a time
+# due to intermittent HTTPS timeouts
 RUN conda update -n base conda
 RUN conda create --name=olympus python=3.7
+RUN conda config --set ssl_verify no
 RUN conda install -n olympus -y -c bioconda numpy scipy pandas scikit-learn
-RUN conda install -n olympus -y -c bioconda pysam bzip2 pybedtools
+RUN conda install -n olympus -y -c bioconda pysam
+RUN conda install -n olympus -y -c bioconda pybedtools
+RUN conda install -n olympus -y -c bioconda bzip2
 RUN conda install -n olympus -y -c bioconda click
 RUN conda install -n olympus -y -c bioconda mysqlclient
+RUN conda install -n olympus -y -c bioconda pybigwig
 ENV CONDA_DEFAULT_ENV olympus
 RUN echo "source activate olympus" >> ~/.bashrc
 ENV PATH /opt/conda/envs/olympus/bin:$PATH
@@ -25,7 +31,7 @@ ENV PATH /opt/conda/envs/olympus/bin:$PATH
 # Clone & install Athena
 RUN git clone https://c9f6da1fb0dd9d5379c313700a1083f9633be849@github.com/talkowski-lab/athena /opt/athena \
     && cd /opt/athena \
-    && git checkout de0321f72a558c4998ba3a96a0d240ad6887399c \
+    && git checkout 891811db2189ebce4a343bb1ef5ac96c187a0746 \
     && cd -
 RUN cd /opt/athena \
     && pip install -e .
