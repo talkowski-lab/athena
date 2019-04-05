@@ -19,6 +19,11 @@ from gzip import GzipFile
 @click.command(name='annotate-bins')
 @click.argument('bins', type=click.Path(exists=True))
 @click.argument('outfile')
+@click.option('--chroms', default=None, 
+              help='Chromosomes to include (comma-separated) ' + 
+              '[default: include all chromosomes]')
+@click.option('-R', '--ranges', default=None,
+              help='BED file containing range(s) for bin restriction.')
 @click.option('-t', '--track', default=None, multiple=True,
               help='Path to local annotation track to apply to bins.')
 @click.option('-u', '--ucsc-track', default=None, multiple=True, 
@@ -30,17 +35,23 @@ from gzip import GzipFile
               '--ucsc-track entries). Must be specified the same number of times ' + 
               'as tracks plus ucsc-tracks.',
               multiple=True, 
-              type=click.Choice(['count', 'count-unique', 'coverage']))
+              type=click.Choice(['count', 'count-unique', 'coverage',
+                                 'map-mean']))
 @click.option('-n', '--track-names', default=None, help='Column names to assign to ' +
               'each new column in the header of the annotated bins file. ' +
               'Follows the same rules for ordering as --actions.',
               multiple=True)
 @click.option('-r', '--ucsc-ref', default=None, type=click.Choice(['hg18', 'hg19', 'hg38']),
               help='UCSC reference genome to use with --ucsc-tracks.')
+@click.option('--fasta', default=None, help='Reference genome fasta file. If ' +
+              'supplied, will annotate all bins with nucleotide content. Will ' +
+              'also generate fasta index if not already available locally.')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
-              help='Compress output with bgzip')
-def annotatebins(bins, outfile, track, ucsc_track, ucsc_ref, actions, 
-                 track_names, bgzip):
+              help='Compress output with bgzip.')
+@click.option('-q', '--quiet', is_flag=True, default=False, 
+              help='Silence progress messages.')
+def annotatebins(bins, outfile, chroms, ranges, track, ucsc_track, ucsc_ref, 
+                 actions, track_names, fasta, bgzip, quiet):
     """
     Annotate bins
     """
@@ -54,10 +65,13 @@ def annotatebins(bins, outfile, track, ucsc_track, ucsc_ref, actions,
         exit(err.format(len(track_names), n_tracks))
     header = GzipFile(bins).readline().decode('utf-8').rstrip()
     newheader = header + '\t' + '\t'.join(list(track_names))
+    if fasta is not None:
+        newheader = '\t'.join([newheader, 'pct_gc'])
 
     # Annotate bins
-    newbins = mutrate.annotate_bins(bins, list(track), list(ucsc_track), 
-                                    ucsc_ref, actions)
+    newbins = mutrate.annotate_bins(bins, chroms, ranges, list(track), 
+                                    list(ucsc_track), ucsc_ref, actions, fasta,
+                                    quiet)
 
     # Save annotated bins
     if '.gz' in outfile:

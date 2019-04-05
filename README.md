@@ -212,9 +212,11 @@ Where:
 
 ### Step 4
 **Annotate training bins**  
-Once the genome has been segmented into sequential, uniform bins (see instructions in [step 3](https://github.com/talkowski-lab/athena#step-3)), we next must annotate these bins with any features to be considered in mutation rate modeling.  
+Once the genome has been segmented into sequential, uniform bins (see the [example in step 3](https://github.com/talkowski-lab/athena#step-3)), we next must annotate these bins with any features to be considered in mutation rate modeling.  
 
-Athena has functionality to apply annotations from local `bed` files, as well as a native interface to all tracks available from the [UCSC Genome Browser](https://genome.ucsc.edu/cgi-bin/hgTables).  
+Athena has functionality to apply annotations from local BEDTools-compatible file types (e.g., BED, VCF, etc.).
+
+Athena also has a native interface to all tracks available from the [UCSC Genome Browser](https://genome.ucsc.edu/cgi-bin/hgTables).  
 
 This functionality is currently in development, and will be updated with instructions as they mature.  
 
