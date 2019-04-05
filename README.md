@@ -214,8 +214,9 @@ Where:
 **Annotate training bins**  
 Once the genome has been segmented into sequential, uniform bins (see the [example in step 3](https://github.com/talkowski-lab/athena#step-3)), we next must annotate these bins with any features to be considered in mutation rate modeling.  
 
-Athena has a flexible interface to apply multiple annotations directly from various sources:  
+Athena has a flexible interface to apply multiple annotations directly from various sources, invoked as `athena annotate-bins`.  
 
+Currently, supported data sources are as follows:  
 | Track format | Source | Athena flag | Available actions |  
 | :--- | :--- | :--- | :--- |   
 | Any file compatible with BEDTools `coverage` or `intersect` (e.g., BED, VCF, GFF, etc.) | Local | `--track` | `--count`, `--count-unique`, `--coverage` |  
