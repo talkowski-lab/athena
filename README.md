@@ -231,7 +231,7 @@ The precise annotations added at this stage are up to the user.
 
 For example, we could annotate the bins from [step 3 (above)](https://github.com/talkowski-lab/athena#step-3) with the following five tracks:
  1. Counts per bin vs. a custom local annotation file (`my_local_annotation.bed`)
- 2. Average ovary expression level per bin from ENCODE (experiment )
+ 2. Average ovary expression level per bin from ENCODE (experiment [ENCSR042GYH](https://www.encodeproject.org/experiments/ENCSR042GYH/))
  3. Maximum ovary chromatin accessibility score per bin from ENCODE (experiment [ENCSR542KIX](https://www.encodeproject.org/experiments/ENCSR542KIX/))  
  4. Coverage per bin by segmental duplications from UCSC (table `genomicSuperDups`)  
  5. Mean mapability of 100mers from UCSC (table `wgEncodeCrgMapabilityAlign24mer`, which links to a remote bigWig file)  
