@@ -229,22 +229,21 @@ Athena has a flexible interface to apply multiple annotations directly from vari
 
 The precise annotations added at this stage are up to the user.  
 
-For example, we could annotate the bins from [step 3 (above)](https://github.com/talkowski-lab/athena#step-3) with the following four tracks:
- * Counts per bin vs. a custom local annotation file (`my_local_annotation.bed`)
- * Average ovary expression level per bin from ENCODE (experiment )
- * Maximum ovary chromatin accessibility score per bin from ENCODE (experiment [ENCSR542KIX](https://www.encodeproject.org/experiments/ENCSR542KIX/))  
- * Coverage per bin by segmental duplications from UCSC (table `genomicSuperDups`)  
- * Mean mapability of 100mers from UCSC (table `wgEncodeCrgMapabilityAlign24mer`, which links to a remote bigWig file)  
+For example, we could annotate the bins from [step 3 (above)](https://github.com/talkowski-lab/athena#step-3) with the following five tracks:
+ 1. Counts per bin vs. a custom local annotation file (`my_local_annotation.bed`)
+ 2. Average ovary expression level per bin from ENCODE (experiment )
+ 3. Maximum ovary chromatin accessibility score per bin from ENCODE (experiment [ENCSR542KIX](https://www.encodeproject.org/experiments/ENCSR542KIX/))  
+ 4. Coverage per bin by segmental duplications from UCSC (table `genomicSuperDups`)  
+ 5. Mean mapability of 100mers from UCSC (table `wgEncodeCrgMapabilityAlign24mer`, which links to a remote bigWig file)  
 
-We would add these four annotations to the bins on chromosome 18 from step 3 as follows:
+We would add these five annotations to the bins from step 3 as follows:
 ```
 $ athena annotate-bins -z \
-    --chroms 18 \
     -t my_local_annotation.bed -a count -n my_annotation \
     -t https://www.encodeproject.org/files/ENCFF845FHW/@@download/ENCFF845FHW.bigWig -a map-mean -n ovary_expression \
     -t https://www.encodeproject.org/files/ENCFF416KSV/@@download/ENCFF416KSV.bigWig -a map-max -n ovary_peak_dnase \
-    -u genomicSuperDups -a coverage -n segdup \
-    -u wgEncodeCrgMapabilityAlign100mer -a map-sum -n mapability \
+    -u genomicSuperDups -a coverage -n segdup_coverage \
+    -u wgEncodeCrgMapabilityAlign100mer -a map-mean -n mapability_100mers \
     --ucsc-ref hg19 \
     -z \
     athena_training_bins.bed.gz \
