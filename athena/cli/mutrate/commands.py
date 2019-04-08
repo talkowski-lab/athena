@@ -91,7 +91,7 @@ def annotatebins(bins, outfile, chroms, ranges, track, ucsc_track, ucsc_ref,
 @click.command(name='eigen-bins')
 @click.argument('bins', type=click.Path(exists=True))
 @click.argument('outfile')
-@click.option('-c', '--components', type=int, default=10,
+@click.option('-e', '--eigenfeatures', 'components', type=int, default=10,
               help='Number of principal components to return. [0]')
 @click.option('--fill-missing', type=str, default='0',
               help='Behavior for filling missing values. Can specify numeric ' + 
@@ -101,15 +101,15 @@ def annotatebins(bins, outfile, chroms, ranges, track, ucsc_track, ucsc_ref,
               help='Skip first N columns of input bins. [3]')
 @click.option('--maxfloat', type=int, default=5, 
               help='Maximum precision of floating-point values. [5]')
-@click.option('--pca-stats', default=None,
-              help='File to write out PCA & feature stats.')
+@click.option('-s', '--stats', default=None,
+              help='File to write out Eigenfeature stats.')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output BED with bgzip.')
 def annodecomp(bins, outfile, components, fill_missing, skip_columns, 
-               maxfloat, pca_stats, bgzip):
+               maxfloat, stats, bgzip):
     """
     Eigendecomposition of annotations
     """
     
     mutrate.decompose_bins(bins, outfile, components, fill_missing, skip_columns,
-                           maxfloat, pca_stats, bgzip)
+                           maxfloat, stats, bgzip)

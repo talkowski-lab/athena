@@ -19,6 +19,7 @@ _Mutation rate modeling_
   2. [Calculate SV size & spacing distributions](https://github.com/talkowski-lab/athena#step-2) (Optional)   
   3. [Create training bins](https://github.com/talkowski-lab/athena#step-3)   
   4. [Annotate training bins](https://github.com/talkowski-lab/athena#step-4)  
+  5. [Collapse redundant annotations](https://github.com/talkowski-lab/athena#step-5)  
 
 _Dosage sensitivity modeling_  
 
@@ -257,7 +258,29 @@ $ athena annotate-bins -z \
     athena_training_bins.annotated.bed.gz
 ```
 
+Don't worry about correlations between various annotation tracks -- this correlation structure will be handled in [step 5, below](https://github.com/talkowski-lab/athena#step-5).  
+
 --- 
+
+### Step 5  
+**Collapse redundant annotations**  
+Many genomic anntations are redudant (e.g., microsatellites and low sequence uniqueness, or GC content and protein-coding exons). 
+
+To control for the underlying correlation structure of the annotations included in [step 4 (above)](https://github.com/talkowski-lab/athena#step-4), the next step in the Athena workflow is to perform Eigenvector decomposition of the annotation matrix.  
+
+This can be accomplished with `athena eigen-bins`. For example, we could decompose the annotations from [the example in step 4]((https://github.com/talkowski-lab/athena#step-4) into the top three Eigenfeatures as follows:  
+```
+athena eigen-bins \
+  --eigenfeatures 3 \
+  --stats eigenfeature_stats.txt \
+  -z \
+  athena_training_bins.annotated.bed.gz \
+  athena_training_bins.annotated.decomped.bed.gz
+```  
+
+If you include the `--stats` option, Athena will also generate a log file with the summary of all Eigenfeatures, including total variance explained by each, and the Spearman correlation of raw annotation tracks significantly correlated with each Eigenfeature. This log file can be useful for determining _what_ each Eigenfeature represents (roughly speaking).  
+
+---  
 
 ### A note on design
 This package was designed with [the gnomAD-SV callset](https://gnomad.broadinstitute.org/downloads) in mind. To that end, it assumes input data follows gnomAD-SV formatting standards. This may cause issues for alternative styles of SV representation, or different metadata labels. If using non-gnomAD data with Athena, please compare your VCF formatting standards, and the `INFO` field in particular.  
