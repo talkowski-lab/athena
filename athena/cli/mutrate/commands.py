@@ -68,11 +68,14 @@ def annotatebins(bins, outfile, chroms, ranges, track, ucsc_track, ucsc_ref,
         err = 'INPUT ERROR: Number of supplied track names ({0}) does not ' + \
               'match number of tracks ({1}).'
         exit(err.format(len(track_names), n_tracks))
-    header = GzipFile(bins).readline().decode('utf-8').rstrip()
+    if path.splitext(bins)[1] in '.bgz .gz .gzip'.split():
+        header = GzipFile(bins).readline().decode('utf-8').rstrip()
+    else:
+        header = open(bins, 'r').readline().decode('utf-8').rstrip()
     newheader = header + '\t' + '\t'.join(list(track_names))
     if fasta is not None:
         newheader = '\t'.join([newheader, 'pct_gc'])
-
+    
     # Annotate bins
     newbins = mutrate.annotate_bins(bins, chroms, ranges, list(track), 
                                     list(ucsc_track), ucsc_ref, actions, fasta,

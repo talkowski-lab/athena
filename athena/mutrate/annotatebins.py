@@ -188,13 +188,12 @@ def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref,
     bins = pybedtools.BedTool(bins)
     if chroms is not None:
         chrlist = chroms.split(',')
-        bins = bins.filter(lambda x: x.chrom in chrlist)
+        bins = bins.filter(lambda x: x.chrom in chrlist).saveas()
     if ranges is not None:
-        bins = bins.intersect(range, wa=True)
+        bins = bins.intersect(range, wa=True).saveas()
 
 
     # Get count of columns in original bins
-    bins = bins.saveas()
     n_cols_old = bins.field_count()
 
 
