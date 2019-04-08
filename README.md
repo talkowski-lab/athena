@@ -217,27 +217,32 @@ Once the genome has been segmented into sequential, uniform bins (see the [examp
 Athena has a flexible interface to apply multiple annotations directly from various sources, invoked as `athena annotate-bins`.  
 
 Currently, supported data sources are as follows:  
+
 | Track format | Source | Athena flag | Available actions |  
 | :--- | :--- | :--- | :--- |   
-| Any file compatible with BEDTools `coverage` or `intersect` (e.g., BED, VCF, GFF, etc.) | Local | `--track` | `--count`, `--count-unique`, `--coverage` |  
+| Any file compatible with BEDTools [`coverage`](https://bedtools.readthedocs.io/en/latest/content/tools/coverage.html) or [`intersect`](https://bedtools.readthedocs.io/en/latest/content/tools/intersect.html) (e.g., BED, VCF, GFF, etc.) | Local | `--track` | `--count`, `--count-unique`, `--coverage` |  
 | [BigWig](https://genome.ucsc.edu/goldenPath/help/bigWig.html) | Local *or remote<sup>1</sup>* | `--track` | `--map-mean`, `--map-sum`, `--map-min`, `--map-max` |  
 | [UCSC Genome Browser Tables](https://genome.ucsc.edu/cgi-bin/hgTables)<sup>2</sup> | Hosted by UCSC | `--ucsc-track` | `--count`, `--count-unique`, `--coverage` |  
 | [UCSC-Hosted BigWig Tracks](https://genome.ucsc.edu/cgi-bin/hgTables)<sup>2</sup> | Hosted by UCSC | `--ucsc-track` | `--map-mean`, `--map-sum`, `--map-min`, `--map-max` |  
+| [FASTA](https://zhanglab.ccmb.med.umich.edu/FASTA/) | Local | `--fasta` | _None required<sup>3</sup>_ |  
+
 
 #### Notes:
  1. If specifying a remote BigWig file, pass the full URL of the remote-hosted file to `--track`.  
- 2. If any UCSC tracks are requested, the UCSC reference build must also be specified with `--ucsc-ref`.  
+ 2. If any UCSC tracks are requested, the UCSC reference build must also be specified with `--ucsc-ref`. Athena will automatically handle necessary conversions between GRC & UCSC contig nomenclature (e.g., `chr1` vs `1`).  
+ 3. Specifying `--fasta` adds a `pct_gc` annotation, which is the GC content of each bin.  
 
 The precise annotations added at this stage are up to the user.  
 
-For example, we could annotate the bins from [step 3 (above)](https://github.com/talkowski-lab/athena#step-3) with the following five tracks:
+For example, we could annotate the bins from [step 3 (above)](https://github.com/talkowski-lab/athena#step-3) with the following six tracks:
  1. Counts per bin vs. a custom local annotation file (`my_local_annotation.bed`)
  2. Average ovary expression level per bin from ENCODE (accession [ENCFF250KXQ](https://www.encodeproject.org/experiments/ENCFF250KXQ/))
  3. Maximum ovary chromatin accessibility score per bin from ENCODE (accession [ENCFF416KSV](https://www.encodeproject.org/experiments/ENCFF416KSV/))  
  4. Coverage per bin by segmental duplications from UCSC (table `genomicSuperDups`)  
  5. Mean mapability of 100mers from UCSC (table `wgEncodeCrgMapabilityAlign24mer`, which links to a remote bigWig file)  
+ 6. GC content from the GRCh37 reference (`GRCh37.fa`).  
 
-We would add these five annotations to the bins from step 3 as follows:
+We would add these six annotations to the bins from step 3 as follows:
 ```
 $ athena annotate-bins -z \
     -t my_local_annotation.bed -a count -n my_annotation \
@@ -246,6 +251,7 @@ $ athena annotate-bins -z \
     -u genomicSuperDups -a coverage -n segdup_coverage \
     -u wgEncodeCrgMapabilityAlign100mer -a map-mean -n mapability_100mers \
     --ucsc-ref hg19 \
+    --fasta GRCh37.fa \
     -z \
     athena_training_bins.bed.gz \
     athena_training_bins.annotated.bed.gz

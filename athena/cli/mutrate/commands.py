@@ -25,15 +25,18 @@ from gzip import GzipFile
 @click.option('-R', '--ranges', default=None,
               help='BED file containing range(s) for bin restriction.')
 @click.option('-t', '--track', default=None, multiple=True,
-              help='Path to local annotation track to apply to bins.')
+              help='Path to local annotation track to apply to bins. ' +
+              'Also supports remote-hosted BigWig URLs.')
 @click.option('-u', '--ucsc-track', default=None, multiple=True, 
-              help='UCSC track to download & annotate. Also requires ' + 
-                   'specifying --ucsc-ref and --actions.')
+              help='UCSC table name to annotate. Can point to either a table or ' + 
+              'a linked remote BigWig file. Requires specifying --ucsc-ref. ' +
+              'To extract a specific column for --action map-*, append the column ' +
+              'name to this argument with a colon (e.g., "recombRate:decodeAvg").')
 @click.option('-a', '--actions', default=None, help='Action to apply to each ' + 
               'annotation track. Will be applied sequentially to each entry to ' +
               '--track and --ucsc-track, in that order (all --track entries before ' +
               '--ucsc-track entries). Must be specified the same number of times ' + 
-              'as tracks plus ucsc-tracks.',
+              'as --tracks and --ucsc-tracks combined.',
               multiple=True, 
               type=click.Choice(['count', 'count-unique', 'coverage',
                                  'map-mean', 'map-sum', 'map-min', 'map-max']))
@@ -46,10 +49,10 @@ from gzip import GzipFile
 @click.option('--fasta', default=None, help='Reference genome fasta file. If ' +
               'supplied, will annotate all bins with nucleotide content. Will ' +
               'also generate fasta index if not already available locally.')
-@click.option('-z', '--bgzip', is_flag=True, default=False, 
-              help='Compress output with bgzip.')
 @click.option('--maxfloat', type=int, default=5, 
               help='Maximum precision of floating-point values. [5]')
+@click.option('-z', '--bgzip', is_flag=True, default=False, 
+              help='Compress output with bgzip.')
 @click.option('-q', '--quiet', is_flag=True, default=False, 
               help='Silence progress messages.')
 def annotatebins(bins, outfile, chroms, ranges, track, ucsc_track, ucsc_ref, 
@@ -85,9 +88,28 @@ def annotatebins(bins, outfile, chroms, ranges, track, ucsc_track, ucsc_ref,
         bgz(outfile)
 
 
-@click.command(name='decomp')
-def annodecomp():
+@click.command(name='eigen-bins')
+@click.argument('bins', type=click.Path(exists=True))
+@click.argument('outfile')
+@click.option('-c', '--components', type=int, default=10,
+              help='Number of principal components to return. [0]')
+@click.option('--fill-missing', type=str, default='0',
+              help='Behavior for filling missing values. Can specify numeric ' + 
+              'value to fill all missing cells, or "mean"/"median" to ' +
+              'impute on a per-column basis. [0]')
+@click.option('--skip-columns', type=int, default=3,
+              help='Skip first N columns of input bins. [3]')
+@click.option('--maxfloat', type=int, default=5, 
+              help='Maximum precision of floating-point values. [5]')
+@click.option('--pca-stats', default=None,
+              help='File to write out PCA & feature stats.')
+@click.option('-z', '--bgzip', is_flag=True, default=False, 
+              help='Compress output BED with bgzip.')
+def annodecomp(bins, outfile, components, fill_missing, skip_columns, 
+               maxfloat, pca_stats, bgzip):
     """
-    Decompose bin annotations
+    Eigendecomposition of annotations
     """
-    click.echo('Perform eigenvector decomposition on annotated bins (in dev.)')
+    
+    mutrate.decompose_bins(bins, outfile, components, fill_missing, skip_columns,
+                           maxfloat, pca_stats, bgzip)

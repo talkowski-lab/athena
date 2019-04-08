@@ -77,12 +77,16 @@ def constrain_query_regions(query, query_ranges):
 
 
 # Format UCSC query dependent on desired output format
-def compose_query(table, db, oformat, query_ranges=None):
+def compose_query(table, db, oformat, query_ranges=None, map_column=None):
 
     # Query dependent on desired output behavior
     if oformat == 'bed':
 
-        query = 'SELECT `chrom`, `chromStart`, `chromEnd` from `{0}`'.format(table)
+        if map_column is None:
+            query = 'SELECT `chrom`, `chromStart`, `chromEnd` from `{0}`'.format(table)
+
+        else:
+            query = 'SELECT `chrom`, `chromStart`, `chromEnd`, `{0}` from `{1}`'.format(map_column, table)
         
         # Constraint query region, if optioned
         if query_ranges is not None:
@@ -95,10 +99,10 @@ def compose_query(table, db, oformat, query_ranges=None):
 
 
 # Download a single table from UCSC database
-def query_table(table, db, oformat='bed', query_ranges=None):
+def query_table(table, db, oformat='bed', query_ranges=None, map_column=None):
 
     # Query database
-    query = compose_query(table, db, oformat, query_ranges)
+    query = compose_query(table, db, oformat, query_ranges, map_column)
     db.query(query)
 
     # Format output
@@ -116,14 +120,20 @@ def query_table(table, db, oformat='bed', query_ranges=None):
 
 
 # Master function for handling UCSC queries
-def query_ucsc(bins, table, db, action, query_ranges):
+def query_ucsc(bins, track, db, action, query_ranges, map_column=None):
 
     # Get raw data
     if 'map-' in action:
-        result = query_table(table, db, 'bigwig', query_ranges)
+        if map_column is None:
+            result = query_table(track, db, 'bigwig', query_ranges)
+        else:
+            result = query_table(track, db, 'bed', query_ranges, map_column)
+            # Coerce to GRC nomenclature, if necessary
+            if 'chr' not in bins[0]:
+                result = result.each(_check_grc_compliance)
 
     elif action in 'count count-unique coverage'.split():
-        result = query_table(table, db, 'bed', query_ranges)
+        result = query_table(track, db, 'bed', query_ranges)
         # Coerce to GRC nomenclature, if necessary
         if 'chr' not in bins[0]:
             result = result.each(_check_grc_compliance)

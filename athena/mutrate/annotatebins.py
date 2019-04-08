@@ -71,13 +71,22 @@ def add_bigwig_track(bins, track, action):
     return bins
 
 
-# Map a bed to bins, assuming column to map is last
-def map_bed_track(bins, track, action):
+# Map a bed to bins
+def add_bedgraph_track(bins, track, action):
+
+    # Assumes column to map is last
+    if isinstance(track, pybedtools.BedTool):
+        track = track.sort().saveas()
+    else:
+        track = pybedtools.BedTool(track).sort().saveas()
+
+    map_col = track.field_count(1)
 
     operation = action.replace('map-', '')
 
-    from sys import exit
-    exit("ERROR: {0} not currently supported for local BED input.".format(action))
+    bins = bins.map(track, c=map_col, o=operation)
+
+    return bins
 
 
 # Clean up long floats in last column of bins
@@ -104,31 +113,43 @@ def add_local_track(bins, track, action, maxfloat, quiet):
         if path.splitext(track)[1] in '.bw .bigwig .bigWig .BigWig'.split():
             bins = add_bigwig_track(bins, track, action)
         else:
-            bins = map_bed_track(bins, track, action)
+            bins = add_bedgraph_track(bins, track, action)
 
     return bins
 
 
 # Wrapper function to add a single ucsc track
-def add_ucsc_track(bins, db, track, action, query_regions, maxfloat, quiet):
+def add_ucsc_track(bins, db, track, action, query_regions, maxfloat, ucsc_ref, quiet):
+
+    # Parse track name
+    if ':' in track:
+        table = track.split(':')[0]
+        map_column = track.split(':')[1]
+    else:
+        table = track
+        map_column = None
+
     # Collect data from UCSC 
-    if ucsc.table_exists(db, track):
+    if ucsc.table_exists(db, table):
         status_msg = '[{0}] athena annotate-bins: Adding UCSC track ' + \
                      '"{1}" with action "{2}"'
         print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
-                                track, action))
-        ures = ucsc.query_ucsc(bins, track, db, action, query_regions)
+                                table, action))
+        ures = ucsc.query_ucsc(bins, table, db, action, query_regions, map_column)
     else:
         from sys import exit
         err = 'UCSC ERROR: Could not find table "{0}" for reference "{1}"'
-        exit(err.format(track, ucsc_ref))
+        exit(err.format(table, ucsc_ref))
 
     # Add track to bins
     if action in 'count count-unique coverage'.split():
         bins = add_bedtool_track(bins, ures, action)
 
     elif 'map-' in action:
-        bins = add_bigwig_track(bins, ures, action)
+        if isinstance(ures, pybedtools.BedTool):
+            bins = add_bedgraph_track(bins, ures, action)
+        else:
+            bins = add_bigwig_track(bins, ures, action)
 
     return bins
 
@@ -200,7 +221,7 @@ def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref,
         for track in ucsc_tracks:
             action = actions[track_counter]
             bins = add_ucsc_track(bins, db, track, action, query_regions, 
-                                  maxfloat, quiet)
+                                  maxfloat, ucsc_ref, quiet)
             track_counter += 1
 
         # Close UCSC connection
