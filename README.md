@@ -266,9 +266,11 @@ Don't worry about correlations between various annotation tracks -- this correla
 **Collapse redundant annotations**  
 Many genomic anntations are redudant (e.g., microsatellites and low sequence uniqueness, or GC content and protein-coding exons). 
 
-To control for the underlying correlation structure of the annotations included in [step 4 (above)](https://github.com/talkowski-lab/athena#step-4), the next step in the Athena workflow is to perform Eigenvector decomposition of the annotation matrix.  
+To control for the underlying correlation structure of the annotations included in [step 4 (above)](https://github.com/talkowski-lab/athena#step-4), the next step in the Athena workflow is to perform Eigenvector decomposition of the binwise annotations.  
 
-This can be accomplished with `athena eigen-bins`. For example, we could decompose the annotations from [the example in step 4]((https://github.com/talkowski-lab/athena#step-4) into the top three Eigenfeatures as follows:  
+This can be accomplished with `athena eigen-bins`. 
+
+For example, we could decompose the annotations from [the example in step 4](https://github.com/talkowski-lab/athena#step-4) into the top three Eigenfeatures as follows:  
 ```
 athena eigen-bins \
   --eigenfeatures 3 \
@@ -278,7 +280,9 @@ athena eigen-bins \
   athena_training_bins.annotated.decomped.bed.gz
 ```  
 
-If you include the `--stats` option, Athena will also generate a log file with the summary of all Eigenfeatures, including total variance explained by each, and the Spearman correlation of raw annotation tracks significantly correlated with each Eigenfeature. This log file can be useful for determining _what_ each Eigenfeature represents (roughly speaking).  
+If you include the `--stats` option, Athena will also generate a log file with the summary of all Eigenfeatures, including total variance explained by each, and the Spearman correlation of raw annotation tracks significantly correlated with each Eigenfeature.  
+
+This log file can be useful for determining _what_ each Eigenfeature represents (roughly speaking).  
 
 ---  
 
