@@ -12,6 +12,10 @@ Functions to interact with UCSC Genome Browser database
 import MySQLdb
 import _mysql
 import pybedtools
+import re
+
+
+default_columns = ['chrom', 'chromStart', 'chromEnd']
 
 
 # Open connection to UCSC MySQL database for a specified reference
@@ -54,11 +58,13 @@ def collapse_query_regions(bins):
 
 
 # Add regional restrictions to a UCSC query SELECT statement
-def constrain_query_regions(query, query_ranges):
+def constrain_query_regions(query, columns, query_ranges):
 
     def _write_single_constraint(interval):
-        c = '(`chrom` = "{0}" AND `chromEnd` >= {1} AND `chromStart` <= {2})'
-        c = c.format(interval.chrom, interval.start, interval.stop)
+        c = '(`{0}` = "{1}" AND `{2}` >= {3} AND `{4}` <= {5})'
+        c = c.format(columns[0], interval.chrom,
+                     columns[1], interval.start,
+                     columns[2], interval.stop)
         return c
 
     constraint = ''
@@ -71,26 +77,75 @@ def constrain_query_regions(query, query_ranges):
             constraint = ' '.join([constraint, 'OR', newcons])
         cidx += 1
 
-    query = ' '.join([query, 'WHERE', constraint])
+    if ' WHERE ' in query:
+        query = '{0} AND ( {1} )'.format(query, constraint)
+    else:
+        query = ' '.join([query, 'WHERE', constraint])
 
     return query
 
 
+# Parse table & column input
+def parse_table_arg(track):
+
+    if ':' in track:
+        table = track.split(':')[0]
+        track_opts = track.split(':')[1].split(',')
+        
+        columns = [i for i in track_opts if not any(s in i for s in '= < >'.split())]
+        if len(columns) < 3:
+            columns = default_columns + columns
+
+        conditions = [i for i in track_opts if any(s in i for s in '= < >'.split())]
+        if len(conditions) == 0:
+            conditions = None
+
+    else:
+        table = track
+        columns = default_columns
+        conditions = None
+
+    return table, columns, conditions
+
+
+# Format conditions into SQL-compliant syntax
+def format_conditions(conditions):
+
+    def _form_cond(cond):
+        terms = re.sub('[=<>]', ' ', cond).split()
+        col = '`{0}`'.format(terms[0])
+        query = terms[1]
+        if not query.isdigit():
+            query = '"{0}"'.format(query)
+        comp = ''.join([c for c in cond if c in set('=><')])
+        form_cond = ' '.join([col, comp, query])
+        return form_cond
+
+    form_conds = [_form_cond(cond) for cond in conditions]
+
+    return form_conds
+
+
+
 # Format UCSC query dependent on desired output format
-def compose_query(table, db, oformat, query_ranges=None, map_column=None):
+def compose_query(table, db, oformat, query_ranges=None, 
+                  columns=default_columns, conditions=None):
 
     # Query dependent on desired output behavior
     if oformat == 'bed':
 
-        if map_column is None:
-            query = 'SELECT `chrom`, `chromStart`, `chromEnd` from `{0}`'.format(table)
+        query = 'SELECT ' + ', '.join(['`{0}`'.format(c) for c in columns])
 
-        else:
-            query = 'SELECT `chrom`, `chromStart`, `chromEnd`, `{0}` from `{1}`'.format(map_column, table)
+        query = query + ' from `{0}`'.format(table)
         
+        # Add other conditions, as optioned
+        if conditions is not None:
+            form_conds = ' AND '.join(format_conditions(conditions))
+            query = '{0} WHERE {1}'.format(query, form_conds)
+
         # Constraint query region, if optioned
         if query_ranges is not None:
-            query = constrain_query_regions(query, query_ranges)
+            query = constrain_query_regions(query, columns, query_ranges)
 
     else:
         query = 'SELECT * from `{0}`'.format(table)
@@ -99,10 +154,11 @@ def compose_query(table, db, oformat, query_ranges=None, map_column=None):
 
 
 # Download a single table from UCSC database
-def query_table(table, db, oformat='bed', query_ranges=None, map_column=None):
+def query_table(table, db, oformat='bed', query_ranges=None, 
+                columns=default_columns, conditions=None):
 
     # Query database
-    query = compose_query(table, db, oformat, query_ranges, map_column)
+    query = compose_query(table, db, oformat, query_ranges, columns, conditions)
     db.query(query)
 
     # Format output
@@ -120,20 +176,22 @@ def query_table(table, db, oformat='bed', query_ranges=None, map_column=None):
 
 
 # Master function for handling UCSC queries
-def query_ucsc(bins, track, db, action, query_ranges, map_column=None):
+def query_ucsc(bins, track, columns, conditions, db, action, query_ranges):
 
     # Get raw data
     if 'map-' in action:
-        if map_column is None:
+        if columns is default_columns:
             result = query_table(track, db, 'bigwig', query_ranges)
         else:
-            result = query_table(track, db, 'bed', query_ranges, map_column)
+            result = query_table(track, db, 'bed', query_ranges, 
+                                 columns, conditions)
             # Coerce to GRC nomenclature, if necessary
             if 'chr' not in bins[0]:
                 result = result.each(_check_grc_compliance)
 
     elif action in 'count count-unique coverage'.split():
-        result = query_table(track, db, 'bed', query_ranges)
+        result = query_table(track, db, 'bed', query_ranges,
+                             columns, conditions)
         # Coerce to GRC nomenclature, if necessary
         if 'chr' not in bins[0]:
             result = result.each(_check_grc_compliance)

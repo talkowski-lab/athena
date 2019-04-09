@@ -28,10 +28,13 @@ from gzip import GzipFile
               help='Path to local annotation track to apply to bins. ' +
               'Also supports remote-hosted BigWig URLs.')
 @click.option('-u', '--ucsc-track', default=None, multiple=True, 
-              help='UCSC table name to annotate. Can point to either a table or ' + 
-              'a linked remote BigWig file. Requires specifying --ucsc-ref. ' +
+              help='UCSC table name to annotate. Requires specifying --ucsc-ref. ' +
               'To extract a specific column for --action map-*, append the column ' +
-              'name to this argument with a colon (e.g., "recombRate:decodeAvg").')
+              'name to this argument with a colon (e.g., "recombRate:decodeAvg"). ' +
+              'Default columns will be ignored if multiple columns are specified. ' +
+              'Separate multiple columns with commas. Conditional column ' +
+              'requirements can be specified by adding a comparison symbol to ' +
+              'the column entry (e.g., rmsk:repClass=LINE).')
 @click.option('-a', '--actions', default=None, help='Action to apply to each ' + 
               'annotation track. Will be applied sequentially to each entry to ' +
               '--track and --ucsc-track, in that order (all --track entries before ' +
@@ -96,6 +99,11 @@ def annotatebins(bins, outfile, chroms, ranges, track, ucsc_track, ucsc_ref,
 @click.argument('outfile')
 @click.option('-e', '--eigenfeatures', 'components', type=int, default=10,
               help='Number of principal components to return. [0]')
+@click.option('--log-transform', multiple=True, help='List of column names to ' +
+              'be log-transformed prior to decomposition. Note that the exact ' +
+              'transformation is log10(x+max(x/1000)).')
+@click.option('--sqrt-transform', multiple=True, help='List of column names to ' +
+              'be square root-transformed prior to decomposition.')
 @click.option('--fill-missing', type=str, default='0',
               help='Behavior for filling missing values. Can specify numeric ' + 
               'value to fill all missing cells, or "mean"/"median" to ' +
@@ -108,11 +116,11 @@ def annotatebins(bins, outfile, chroms, ranges, track, ucsc_track, ucsc_ref,
               help='File to write out Eigenfeature stats.')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output BED with bgzip.')
-def annodecomp(bins, outfile, components, fill_missing, skip_columns, 
-               maxfloat, stats, bgzip):
+def annodecomp(bins, outfile, components, log_transform, sqrt_transform, 
+               fill_missing, skip_columns, maxfloat, stats, bgzip):
     """
     Eigendecomposition of annotations
     """
     
-    mutrate.decompose_bins(bins, outfile, components, fill_missing, skip_columns,
-                           maxfloat, stats, bgzip)
+    mutrate.decompose_bins(bins, outfile, components, log_transform, sqrt_transform,
+                           fill_missing, skip_columns, maxfloat, stats, bgzip)

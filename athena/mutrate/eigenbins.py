@@ -39,6 +39,40 @@ def _clean_missing_vals(df, fill_missing):
     return df
 
 
+# Perform log-transformation of a single feature
+def _log_trans(df, column):
+    
+    if column not in list(df.columns):
+        from sys import exit
+        err = 'ERROR: "{0}" is not a recognized feature name in input bins; ' + \
+              'log transformation failed'
+        exit(err.format(column))
+
+    df[[column]] = df[[column]].apply(pd.to_numeric, errors='coerce')
+
+    maxval = df[[column]].max().tolist()[0]
+
+    df[[column]] = np.log10(df[[column]] + maxval/100)
+
+    return df
+
+
+# Perform square root-transformation of a single feature
+def _sqrt_trans(df, column):
+    
+    if column not in list(df.columns):
+        from sys import exit
+        err = 'ERROR: "{0}" is not a recognized feature name in input bins; ' + \
+              'log transformation failed'
+        exit(err.format(column))
+
+    df[[column]] = df[[column]].apply(pd.to_numeric, errors='coerce')
+
+    df[[column]] = np.sqrt(df[[column]])
+
+    return df
+
+
 # Compute PCA & feature stats
 def get_feature_stats(df_annos, feature_names, pca, pcs, stats_outfile):
     # Compute variance explained
@@ -70,7 +104,7 @@ def get_feature_stats(df_annos, feature_names, pca, pcs, stats_outfile):
 
         ename = eigen_names[comp]
 
-        for fname, rho, pval in sorted(corstats[ename], key=lambda x: x[-1]):
+        for fname, rho, pval in sorted(corstats[ename], key=lambda x: (x[-1], -abs(x[1]))):
             if pval <= 0.05 / len(feature_names):
                 newline = '    * {0}: Rho = {1}; P = {2:.2e}\n'
                 fout.write(newline.format(fname, round(rho, 2), pval))
@@ -87,7 +121,8 @@ def float_cleanup(df, maxfloat, start_idx):
 
 
 # Master function for Eigendecomposition of bin annotations
-def decompose_bins(bins, outfile, components=10, fill_missing=0, first_column=3,
+def decompose_bins(bins, outfile, components=10, log_transform=None, 
+                   sqrt_transform=None, fill_missing=0, first_column=3, 
                    maxfloat=5, pca_stats=None, bgzip=False):
 
     # Disable data scaling warnings
@@ -101,6 +136,15 @@ def decompose_bins(bins, outfile, components=10, fill_missing=0, first_column=3,
 
     # Clean missing values
     df_annos = _clean_missing_vals(df_annos, fill_missing)
+
+    # Transform any columns as optioned
+    if log_transform is not None:
+        for column in log_transform:
+            df_annos = _log_trans(df_annos, column)
+
+    if sqrt_transform is not None:
+        for column in sqrt_transform:
+            df_annos = _sqrt_trans(df_annos, column)
 
     # Scale all columns
     df_annos = StandardScaler().fit_transform(df_annos)

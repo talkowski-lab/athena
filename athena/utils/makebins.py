@@ -14,10 +14,10 @@ from os import path
 from athena.utils.misc import bgzip as bgz
 
 
-def make_bins(genome, binsize, outfile, blacklist, buffer, xchroms, bgzip):
+def make_bins(genome, binsize, outfile, stepsize, blacklist, buffer, xchroms, bgzip):
 
     # Create bins
-    bins = pybedtools.BedTool().window_maker(g=genome, w=binsize)
+    bins = pybedtools.BedTool().window_maker(g=genome, w=binsize, s=stepsize)
 
     # Exclude specified chromosomes
     if xchroms is not None:

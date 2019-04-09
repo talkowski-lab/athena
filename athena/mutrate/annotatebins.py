@@ -121,13 +121,7 @@ def add_local_track(bins, track, action, maxfloat, quiet):
 # Wrapper function to add a single ucsc track
 def add_ucsc_track(bins, db, track, action, query_regions, maxfloat, ucsc_ref, quiet):
 
-    # Parse track name
-    if ':' in track:
-        table = track.split(':')[0]
-        map_column = track.split(':')[1]
-    else:
-        table = track
-        map_column = None
+    table, columns, conditions = ucsc.parse_table_arg(track)
 
     # Collect data from UCSC 
     if ucsc.table_exists(db, table):
@@ -135,7 +129,8 @@ def add_ucsc_track(bins, db, track, action, query_regions, maxfloat, ucsc_ref, q
                      '"{1}" with action "{2}"'
         print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
                                 table, action))
-        ures = ucsc.query_ucsc(bins, table, db, action, query_regions, map_column)
+        ures = ucsc.query_ucsc(bins, table, columns, conditions, 
+                               db, action, query_regions)
     else:
         from sys import exit
         err = 'UCSC ERROR: Could not find table "{0}" for reference "{1}"'

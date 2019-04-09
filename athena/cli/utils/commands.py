@@ -78,6 +78,8 @@ def vcfstats(vcf, quantiles):
 @click.argument('genome', type=click.Path(exists=True))
 @click.argument('binsize', type=int)
 @click.argument('outfile')
+@click.option('-s', '--step', 'stepsize', default=None, 
+              help='Step size of bins. [default: binsize]')
 @click.option('-x', '--blacklist', default=None, multiple=True,
               help='BED file of regions to exclude, based on bin overlap. ' + 
               'This may be specified multiple times. [default: None]')
@@ -90,11 +92,11 @@ def vcfstats(vcf, quantiles):
               '[default: exclude no chromosomes]')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output with bgzip')
-def makebins(genome, binsize, outfile, blacklist, buffer, xchroms, bgzip):
+def makebins(genome, binsize, outfile, stepsize, blacklist, buffer, xchroms, bgzip):
     """
     Create sequential bins
     """
-    utils.make_bins(genome, binsize, outfile, blacklist, buffer, xchroms, bgzip)
+    utils.make_bins(genome, binsize, outfile, stepsize, blacklist, buffer, xchroms, bgzip)
 
 
 # Pair bins
