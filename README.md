@@ -17,9 +17,9 @@ Distributed under terms of the [MIT License](/LICENSE) (see `LICENSE`).
 _Mutation rate modeling_ 
   1. [Filter SVs for mutation rate training](https://github.com/talkowski-lab/athena#step-1)  
   2. [Calculate SV size & spacing distributions](https://github.com/talkowski-lab/athena#step-2) (Optional)   
-  3. [Create training bins](https://github.com/talkowski-lab/athena#step-3)   
-  4. [Annotate training bins](https://github.com/talkowski-lab/athena#step-4)  
-  5. [Collapse redundant annotations](https://github.com/talkowski-lab/athena#step-5)  
+  3. [Create 1D training bins](https://github.com/talkowski-lab/athena#step-3)   
+  4. [Annotate 1D training bins](https://github.com/talkowski-lab/athena#step-4)  
+  5. [Collapse redundant 1D annotations](https://github.com/talkowski-lab/athena#step-5)  
 
 _Dosage sensitivity modeling_  
 
@@ -119,19 +119,24 @@ Conceptually, this filtering step aims to accomplish a few points:
 3. Restrict to high-quality variants to reduce the influence of purely technical factors in mutation rate estimates  
 
 For instance, to generate a training set of deletions from the [gnomAD-SV v2 dataset](https://gnomad.broadinstitute.org/downloads) (`gnomad_v2_sv.sites.vcf.gz`) for a deletion mutation rate model, you could run the following:  
+
 ```
+$ wget https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2_sv.sites.vcf.gz
+$ wget https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2_sv.sites.vcf.gz.tbi
 $ athena vcf-filter -z \
   	--exclude-chroms X,Y \
   	--svtypes DEL \
   	--blacklist data/athena.SV_selection_blacklist.v1.GRCh37.bed.gz \
   	--maxAF 0.01 \
   	--minAC 1 \
+    --minAN 20402 \
   	--minQUAL 100 \
   	--pHWE 0.01 \
   	gnomad_v2_sv.sites.vcf.gz \
   	athena_training_deletions.vcf.gz
 ```
-The above command will return a set of 129,033 rare, high-quality autosomal deletions from gnomAD-SV for training a deletion mutation rate model downstream.  
+
+The above command will return a set of 118,927 rare, high-quality autosomal deletions from gnomAD-SV for training a deletion mutation rate model downstream.  
 
 See `data/` for a description of the file provided to `--blacklist`.  
 
@@ -153,27 +158,27 @@ This will print two distributions directly to the console:
 SV spacing quantiles:
 ---------------------
 25.0%: 0 bp
-50.0%: 3,138 bp
-75.0%: 10,951 bp
-90.0%: 22,031 bp
-95.0%: 30,908 bp
-99.0%: 52,568 bp
-99.9%: 89,697 bp
+50.0%: 3,785 bp
+75.0%: 12,149 bp
+90.0%: 23,843 bp
+95.0%: 33,484 bp
+99.0%: 56,489 bp
+99.9%: 98,723 bp
 
 SV size quantiles:
 ------------------
-25.0%: 139 bp
-50.0%: 642 bp
-75.0%: 2,843 bp
-90.0%: 7,303 bp
-95.0%: 12,000 bp
-99.0%: 41,716 bp
-99.9%: 150,958 bp
+25.0%: 132 bp
+50.0%: 646 bp
+75.0%: 2,788 bp
+90.0%: 7,299 bp
+95.0%: 12,024 bp
+99.0%: 42,628 bp
+99.9%: 153,744 bp
 ```
 
-From these data, we can see that about 99% of all deletions in the training set are smaller than 42kb, which means that we probably do not need to extend the training of our 2D model beyond 40kb to capture almost all of the informative 2D signal.  
+From these data, we can see that 99% of all deletions in the training set are smaller than 43kb, which means that we probably do not need to extend the training of our 2D model beyond \~40kb to capture almost all of the informative 2D signal.  
 
-We can also observe that roughly half of all deletions are no farther than a few kilobases away from the next-nearest deletion, which means that bin sizes of several kilobases should result in reasonably dense training data.  
+We can also observe that over half of all deletions are no farther than 4 kilobases away from the next-nearest deletion, which means that bin sizes of several kilobases should result in reasonably dense training data.  
 
 Based on this logic along with some approximate rounding, we can decide on the two key parameters used in the remaining steps of the mutation rate model:
 ```
@@ -184,7 +189,7 @@ Based on this logic along with some approximate rounding, we can decide on the t
 --- 
 
 ### Step 3
-**Create training bins**  
+**Create 1D training bins**  
 The next step is to segment the genome into sequential, uniform bins.  
 
 These bins will only be used for training the mutation rate model. Once trained, you can extend the mutation rate model beyond this subset of training bins.  
@@ -212,7 +217,7 @@ Where:
 --- 
 
 ### Step 4
-**Annotate training bins**  
+**Annotate 1D training bins**  
 Once the genome has been segmented into sequential, uniform bins (see the [example in step 3](https://github.com/talkowski-lab/athena#step-3)), we next must annotate these bins with any features to be considered in mutation rate modeling.  
 
 Athena has a flexible interface to apply multiple annotations directly from various sources, invoked as `athena annotate-bins`.  
@@ -263,7 +268,7 @@ Don't worry about correlations between various annotation tracks -- this correla
 --- 
 
 ### Step 5  
-**Collapse redundant annotations**  
+**Collapse redundant 1D annotations**  
 Many genomic anntations are redudant (e.g., microsatellites and low sequence uniqueness, or GC content and protein-coding exons). 
 
 To control for the underlying correlation structure of the annotations included in [step 4 (above)](https://github.com/talkowski-lab/athena#step-4), the next step in the Athena workflow is to perform Eigenvector decomposition of the binwise annotations.  
@@ -287,7 +292,11 @@ This log file can be useful for determining _what_ each Eigenfeature represents 
 ---  
 
 ### A note on design
-This package was designed with [the gnomAD-SV callset](https://gnomad.broadinstitute.org/downloads) in mind. To that end, it assumes input data follows gnomAD-SV formatting standards. This may cause issues for alternative styles of SV representation, or different metadata labels. If using non-gnomAD data with Athena, please compare your VCF formatting standards, and the `INFO` field in particular.  
+This package was designed with canonical CNVs from [the gnomAD-SV callset](https://gnomad.broadinstitute.org/downloads) in mind.  
+
+To that end, it assumes input data follows gnomAD-SV formatting standards. This may cause issues for alternative styles of SV representation, for SV types other than canonical CNVs, or different metadata labels.  
+
+If using non-gnomAD data with Athena, please compare your VCF formatting standards, and the `INFO` field in particular.  
 
 You can read more about the gnomAD-SV dataset [in the corresponding preprint](https://broad.io/gnomad_sv).
 

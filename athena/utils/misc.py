@@ -11,11 +11,13 @@ Miscellaneous utilities
 
 import subprocess
 from scipy.stats import chi2
+import pybedtools
 
 
 # Bgzip a file
 def bgzip(filename):
     subprocess.run(['bgzip', '-f', filename])
+
 
 # Chi-squared test for deviation from Hardy-Weinberg equilibrium
 def hwe_chisq(record):
@@ -41,3 +43,33 @@ def hwe_chisq(record):
     p = 1 - chi2.cdf(chisq, 1)
 
     return p
+
+
+# Convert a pysam.VariantFile (vcf) to a BED
+def vcf2bed(vcf, breakpoints=False):
+
+    intervals = ''
+    
+    for record in vcf:
+
+        chrom = record.chrom
+        if 'CHR2' in record.info.keys():
+            chrom_two = record.info['CHR2']
+        else:
+            chrom_two = chrom
+        start = record.pos
+        end = record.stop
+        var_id = record.id
+        
+        if breakpoints == True:
+            first_bp = '{0}\t{1}\t{2}\t{3}\n'.format(chrom, start, start + 1, var_id)
+            second_bp = '{0}\t{1}\t{2}\t{3}\n'.format(chrom_two, end, end + 1, var_id)
+            new_interval = first_bp + second_bp
+        else:
+            new_interval = '{0}\t{1}\t{2}\t{3}\n'.format(chrom, start, end, var_id)
+
+        intervals = intervals + new_interval
+
+    bed = pybedtools.BedTool(intervals, from_string=True)
+
+    return bed

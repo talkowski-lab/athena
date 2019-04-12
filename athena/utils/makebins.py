@@ -17,6 +17,8 @@ from athena.utils.misc import bgzip as bgz
 def make_bins(genome, binsize, outfile, stepsize, blacklist, buffer, xchroms, bgzip):
 
     # Create bins
+    if stepsize is None:
+        stepsize = binsize
     bins = pybedtools.BedTool().window_maker(g=genome, w=binsize, s=stepsize)
 
     # Drop bins produced smaller than desired bin size

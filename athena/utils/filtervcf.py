@@ -19,7 +19,7 @@ from athena.utils.misc import hwe_chisq
 
 
 def filter_vcf(vcf, out, chroms, xchroms, svtypes, blacklist, 
-               minAF, maxAF, minAC, maxAC, filters, 
+               minAF, maxAF, minAC, maxAC, minAN, filters, 
                minQUAL, maxQUAL, HWE, keep_infos, bgzip):
 
     # Open connection to input VCF
@@ -116,6 +116,12 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, blacklist,
                     continue
             if maxAC is not None:
                 if sum(record.info['AC']) > maxAC:
+                    continue
+
+        # Filter by AN
+        if 'AN' in record.info.keys():
+            if minAN is not None:
+                if record.info['AN'] < minAN:
                     continue
 
         # Filter by VCF FILTER

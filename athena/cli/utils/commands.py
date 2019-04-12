@@ -35,6 +35,8 @@ from athena import utils
               help='Minimum allowed allele count [default: 0]')
 @click.option('--maxAC', 'maxAC', type=int, default=None, 
               help='Maximum allowed allele count [default: None]')
+@click.option('--minAN', 'minAN', type=int, default=0, 
+              help='Minimum allowed allele number [default: 0]')
 @click.option('--vcf-filters', 'filters', default='PASS', 
               help='VCF FILTER statuses to be included [default: PASS]')
 @click.option('--minQUAL', 'minQUAL', type=int, default=0,
@@ -51,13 +53,14 @@ from athena import utils
                    'filter records based on INFO. [default: Keep no other INFO]')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output with bgzip')
-def filtervcf(vcf, out, chroms, xchroms, svtypes, blacklist, minAF, maxAF, minAC, maxAC, filters, 
-              minQUAL, maxQUAL, HWE, keep_infos, bgzip):
+def filtervcf(vcf, out, chroms, xchroms, svtypes, blacklist, minAF, maxAF, 
+              minAC, maxAC, minAN, filters, minQUAL, maxQUAL, HWE, 
+              keep_infos, bgzip):
     """
     Filter an input VCF
     """
     utils.filter_vcf(vcf, out, chroms, xchroms, svtypes, blacklist, 
-                     minAF, maxAF, minAC, maxAC, filters, 
+                     minAF, maxAF, minAC, maxAC, minAN, filters, 
                      minQUAL, maxQUAL, HWE, keep_infos, bgzip)
 
 
@@ -110,8 +113,36 @@ def pair():
 
 # Intersect SVs and bins
 @click.command(name='count-sv')
-def countsv():
+@click.argument('bins', type=click.Path(exists=True))
+@click.argument('sv', type=click.Path(exists=True))
+@click.argument('outfile')
+@click.option('--sv-format', type=click.Choice(['vcf', 'bed']),
+              help='File format of SV input. Required.')
+@click.option('--comparison', type=click.Choice(['interval', 'breakpoint']),
+              help='Specification of SV-to-bin comparison. Required.')
+def countsv(bins, sv, outfile, sv_format, comparison):
     """
     Intersect SV and bins
     """
-    click.echo('Intersect SV and bins (in dev.)')
+
+    # Ensure --sv-format is specified
+    if sv_format not in 'vcf bed'.split():
+      from sys import exit
+      if sv_format is None:
+        err = 'INPUT ERROR: --sv-format is required. Options: "vcf" or "bed".'
+      else:
+        err = 'INPUT ERROR: --sv-format "{0}" not recognized. Options: "vcf" or "bed".'
+      exit(err.format(sv_format))
+
+    # Ensure --comparison is specified
+    if comparison not in 'interval breakpoint'.split():
+      from sys import exit
+      if comparison is None:
+        err = 'INPUT ERROR: --comparison is required. Options: ' + \
+              '"interval" or "breakpoint".'
+      else:
+        err = 'INPUT ERROR: --comparison "{0}" not recognized. Options: ' + \
+              '"interval" or "breakpoint".'
+      exit(err.format(comparison))
+
+    utils.count_sv(bins, sv, outfile, sv_format, comparison)
