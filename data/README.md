@@ -17,4 +17,12 @@ This is a BED file of regions under mutational constraint. This file can be used
 
 This file was compiled by taking the union of two datasets: (1) all exons from the [Gencode v19](https://www.gencodegenes.org/human/release_19.html) canonical transcripts of protein-coding genes in the top half of all genes (n=9,857 genes) based on constraint against loss-of-function point mutations [(i.e., LOEUF)](https://gnomad.broadinstitute.org/downloads) from the [gnomAD v2.1 SNV and indel analyses](https://broad.io/gnomad_lof), and (2) a list of all mutationally constrained DNA elements [per GERP++](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1001025) (GERP RS-score ≥ 3).  
 
-The nonredundant union of these two sources comprises 253,628 distinct intervals over a total of 44.5Mb, or roughly ~1.5% of the alignable primary GRCh37 reference assembly.
+The nonredundant union of these two sources comprises 253,628 distinct intervals over a total of 44.5Mb, or roughly \~1.5% of the alignable primary GRCh37 reference assembly.  
+
+### GRCh37 references  
+
+**N-mask:** `GRCh37.Nmask.bed.gz`  
+This is a BED file of the N-masked regions of the GRCh37 reference assembly, as provided by the [UCSC Genome Browser](http://genome.ucsc.edu).  
+
+**Genome file:** `GRCh37.genome`  
+This is a [BEDTools-style](https://bedtools.readthedocs.io/en/latest/content/tools/genomecov.html) genome file, which lists all contigs in the GRCh37 primary assembly and their lengths.  

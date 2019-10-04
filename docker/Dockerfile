@@ -9,7 +9,8 @@ MAINTAINER "Ryan Collins <rlcollins@g.harvard.edu>"
 
 # Install make and zlib
 RUN apt-get -qqy update \
-    && apt-get -qqy install --fix-missing build-essential zlib1g-dev libcurl4-openssl-dev
+    && apt-get -qqy install --fix-missing \
+           apt-utils build-essential zlib1g-dev libcurl4-openssl-dev
 
 # Create python environment
 # Note: in practice, it's more sane to install packages one at a time
@@ -21,19 +22,19 @@ ENV CONDA_DEFAULT_ENV olympus
 RUN echo "source activate olympus" >> ~/.bashrc
 ENV PATH /opt/conda/envs/olympus/bin:$PATH
 RUN conda install -n olympus -y -c bioconda numpy scipy pandas scikit-learn
-RUN conda install -n olympus -y -c bioconda pysam
+RUN conda install -n olympus -y -c bioconda samtools=1.9 pysam=0.15.3
 RUN conda install -n olympus -y -c bioconda pybedtools bedtools=2.27.0
 RUN conda install -n olympus -y -c bioconda bzip2
 RUN conda install -n olympus -y -c bioconda click
 RUN apt-get -qqy update && \
     apt-get -qqy install --fix-missing default-libmysqlclient-dev
 RUN conda install -n olympus -y -c bioconda mysqlclient
-RUN conda install -n olympus -y -c bioconda pybigwig
+RUN conda install -n olympus -y -c bioconda pybigwig=0.3.17
 
 # Clone & install Athena
 RUN git clone https://c9f6da1fb0dd9d5379c313700a1083f9633be849@github.com/talkowski-lab/athena /opt/athena \
     && cd /opt/athena \
-    && git checkout 7aeaddb0a178da4d66685c3a4fdfd5daf27d85e9 \
+    && git checkout b41c652c5ead81481145261a703ab01213fef623 \
     && cd -
 RUN cd /opt/athena \
     && pip install -e .

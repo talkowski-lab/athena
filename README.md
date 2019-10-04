@@ -104,7 +104,7 @@ $ athena vcf-filter -z \
     athena_training_deletions.vcf.gz
 ```
 
-The above command will return a set of 118,927 rare, high-quality autosomal deletions from gnomAD-SV for training a deletion mutation rate model downstream.  
+The above command will return a set of 112,429 rare, high-quality autosomal deletions from gnomAD-SV for training a deletion mutation rate model downstream.  
 
 See `data/` for a description of the file provided to `--blacklist`.  
 
@@ -126,27 +126,27 @@ This will print two distributions directly to the console:
 SV spacing quantiles:
 ---------------------
 25.0%: 0 bp
-50.0%: 3,785 bp
-75.0%: 12,149 bp
-90.0%: 23,843 bp
-95.0%: 33,484 bp
-99.0%: 56,489 bp
-99.9%: 98,723 bp
+50.0%: 4,266 bp
+75.0%: 13,041 bp
+90.0%: 25,352 bp
+95.0%: 35,624 bp
+99.0%: 59,609 bp
+99.9%: 104,926 bp
 
 SV size quantiles:
 ------------------
 25.0%: 132 bp
-50.0%: 646 bp
-75.0%: 2,788 bp
-90.0%: 7,299 bp
-95.0%: 12,024 bp
-99.0%: 42,628 bp
-99.9%: 153,744 bp
+50.0%: 640 bp
+75.0%: 2,743 bp
+90.0%: 7,170 bp
+95.0%: 11,953 bp
+99.0%: 42,042 bp
+99.9%: 150,345 bp
 ```
 
-From these data, we can see that 99% of all deletions in the training set are smaller than 43kb, which means that we probably do not need to extend the training of our 2D model beyond \~40kb to capture almost all of the informative 2D signal.  
+From the first distribution (`SV spacing`), we can observe that over half of all deletions are no farther than 4 kilobases away from the next-nearest deletion, which means that bin sizes of several kilobases should result in reasonably dense training data.  
 
-We can also observe that over half of all deletions are no farther than 4 kilobases away from the next-nearest deletion, which means that bin sizes of several kilobases should result in reasonably dense training data.  
+And based on the second distribution (`SV size`), we can also see that 99% of all deletions in the training set are smaller than 43kb, which means that we probably do not need to extend the training of our 2D model beyond \~40kb to capture almost all of the informative 2D signal.  
 
 Based on this logic along with some approximate rounding, we can decide on the two key parameters used in the remaining steps of the mutation rate model:
 ```
@@ -170,17 +170,17 @@ We can create these bins as follows:
 ```
 $ athena make-bins -z \
     -x data/athena.SV_selection_blacklist.v1.GRCh37.bed.gz \
-    -x GRCh37.Nmask.bed.gz \
+    -x data/GRCh37.Nmask.bed.gz \
     --buffer 4000 \
     --exclude-chroms X,Y,M \
-    GRCh37.genome \
+    data/GRCh37.genome \
     4000 \
     athena_training_bins.bed.gz
 ```
 
 Where:
-  * `GRCh37.Nmask.bed.gz` is a BED file containing all N-masked regions of the reference genome. This file is available from numerous sources, including [UCSC](https://genome.ucsc.edu).  
-  * `GRCh37.genome` is a two-column, tab-delimited file [per the BEDTools specifications](https://bedtools.readthedocs.io/en/latest/content/tools/genomecov.html).  
+  * `GRCh37.Nmask.bed.gz` is a BED file containing all N-masked regions of the reference genome. This file is available from numerous sources, including [UCSC](https://genome.ucsc.edu). A copy for GRCh37 is [packaged with Athena](https://github.com/talkowski-lab/athena/tree/master/data)  
+  * `GRCh37.genome` is a two-column, tab-delimited file [per the BEDTools specifications](https://bedtools.readthedocs.io/en/latest/content/tools/genomecov.html). A copy for GRCh37 is [packaged with Athena](https://github.com/talkowski-lab/athena/tree/master/data).    
 
 --- 
 
@@ -218,6 +218,7 @@ For example, we could annotate the bins from [step 3 (above)](https://github.com
 
 We would add these six annotations to the bins from step 3 as follows:
 ```
+$ wget ftp://ftp.ensembl.org/pub/grch37/current/fasta/homo_sapiens/dna/Homo_sapiens.GRCh37.dna.primary_assembly.fa.gz
 $ athena annotate-bins -z \
     -t my_local_annotation.bed -a count -n my_annotation \
     -t https://www.encodeproject.org/files/ENCFF250KXQ/@@download/ENCFF250KXQ.bigWig -a map-mean -n ovary_sense_strand_expression \
@@ -225,7 +226,7 @@ $ athena annotate-bins -z \
     -u genomicSuperDups -a coverage -n segdup_coverage \
     -u wgEncodeCrgMapabilityAlign100mer -a map-mean -n mapability_100mers \
     --ucsc-ref hg19 \
-    --fasta GRCh37.fa \
+    --fasta Homo_sapiens.GRCh37.dna.primary_assembly.fa.gz \
     -z \
     athena_training_bins.bed.gz \
     athena_training_bins.annotated.bed.gz
