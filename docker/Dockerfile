@@ -31,10 +31,14 @@ RUN apt-get -qqy update && \
 RUN conda install -n olympus -y -c bioconda mysqlclient
 RUN conda install -n olympus -y -c bioconda pybigwig=0.3.17
 
+# Increase max MySQL packet size for large UCSC queries
+RUN echo "[mysqld]\nmax_allowed_packet = 2G" > /etc/my.cnf
+RUN echo "[client]\nmax_allowed_packet = 2G" >> /etc/my.cnf
+
 # Clone & install Athena
 RUN git clone https://c9f6da1fb0dd9d5379c313700a1083f9633be849@github.com/talkowski-lab/athena /opt/athena \
     && cd /opt/athena \
-    && git checkout b41c652c5ead81481145261a703ab01213fef623 \
+    && git checkout 393f7b31bf6eb2e398f63a804f54110e1bc6af2a \
     && cd -
 RUN cd /opt/athena \
     && pip install -e .

@@ -19,7 +19,7 @@ from gzip import GzipFile
 @click.command(name='annotate-bins')
 @click.argument('bins', type=click.Path(exists=True))
 @click.argument('outfile')
-@click.option('--chroms', default=None, 
+@click.option('--include-chroms', default=None, 
               help='Chromosomes to include (comma-separated) ' + 
               '[default: include all chromosomes]')
 @click.option('-R', '--ranges', default=None,
@@ -52,17 +52,24 @@ from gzip import GzipFile
 @click.option('--fasta', default=None, help='Reference genome fasta file. If ' +
               'supplied, will annotate all bins with nucleotide content. Will ' +
               'also generate fasta index if not already available locally.')
+@click.option('--no-ucsc-chromsplit', is_flag=True, default=False, 
+              help='Disable serial per-chromosome queries for UCSC tracks. May ' + 
+              'improve annotation speed. Not recommended unless input bin file ' +
+              'is small.')
 @click.option('--maxfloat', type=int, default=5, 
               help='Maximum precision of floating-point values. [5]')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output with bgzip.')
 @click.option('-q', '--quiet', is_flag=True, default=False, 
               help='Silence progress messages.')
-def annotatebins(bins, outfile, chroms, ranges, track, ucsc_track, ucsc_ref, 
-                 actions, track_names, fasta, maxfloat, bgzip, quiet):
+def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_ref, 
+                 actions, track_names, fasta, no_ucsc_chromsplit, maxfloat, 
+                 bgzip, quiet):
     """
     Annotate bins
     """
+
+    ucsc_chromsplit = not no_ucsc_chromsplit
 
     # Handle header reformatting
     n_tracks = len(track) + len(ucsc_track)
@@ -74,15 +81,16 @@ def annotatebins(bins, outfile, chroms, ranges, track, ucsc_track, ucsc_ref,
     if path.splitext(bins)[1] in '.bgz .gz .gzip'.split():
         header = GzipFile(bins).readline().decode('utf-8').rstrip()
     else:
-        header = open(bins, 'r').readline().decode('utf-8').rstrip()
+        header = open(bins, 'r').readline().rstrip()
+    header = header.replace('#', '')
     newheader = header + '\t' + '\t'.join(list(track_names))
     if fasta is not None:
         newheader = '\t'.join([newheader, 'pct_gc'])
     
     # Annotate bins
-    newbins = mutrate.annotate_bins(bins, chroms, ranges, list(track), 
+    newbins = mutrate.annotate_bins(bins, include_chroms, ranges, list(track), 
                                     list(ucsc_track), ucsc_ref, actions, fasta,
-                                    maxfloat, quiet)
+                                    maxfloat, ucsc_chromsplit, quiet)
 
     # Save annotated bins
     if '.gz' in outfile:

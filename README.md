@@ -214,25 +214,89 @@ For example, we could annotate the bins from [step 3 (above)](https://github.com
  3. Maximum ovary chromatin accessibility score per bin from ENCODE (accession [ENCFF416KSV](https://www.encodeproject.org/experiments/ENCFF416KSV/))  
  4. Coverage per bin by segmental duplications from UCSC (table `genomicSuperDups`)  
  5. Mean mapability of 100mers from UCSC (table `wgEncodeCrgMapabilityAlign24mer`, which links to a remote bigWig file)  
- 6. GC content from the GRCh37 reference (`GRCh37.fa`).  
+ 6. GC content from the GRCh37 reference ([`Homo_sapiens.GRCh37.dna.primary_assembly.fa.gz`](https://grch37.ensembl.org/Homo_sapiens/Info/Index)).  
 
 We would add these six annotations to the bins from step 3 as follows:
 ```
+# First, download and unzip the reference assembly fasta file 
+# (note: BEDTools currently does not support compressed reference fasta files)
 $ wget ftp://ftp.ensembl.org/pub/grch37/current/fasta/homo_sapiens/dna/Homo_sapiens.GRCh37.dna.primary_assembly.fa.gz
+$ gunzip Homo_sapiens.GRCh37.dna.primary_assembly.fa.gz
+
+# Second, run athena annotate-bins
 $ athena annotate-bins -z \
     -t my_local_annotation.bed -a count -n my_annotation \
     -t https://www.encodeproject.org/files/ENCFF250KXQ/@@download/ENCFF250KXQ.bigWig -a map-mean -n ovary_sense_strand_expression \
     -t https://www.encodeproject.org/files/ENCFF416KSV/@@download/ENCFF416KSV.bigWig -a map-max -n ovary_peak_dnase_hypersensitivity \
     -u genomicSuperDups -a coverage -n segdup_coverage \
+    -u rmsk -a count -n repeatmasker_count \
     -u wgEncodeCrgMapabilityAlign100mer -a map-mean -n mapability_100mers \
     --ucsc-ref hg19 \
-    --fasta Homo_sapiens.GRCh37.dna.primary_assembly.fa.gz \
-    -z \
+    --fasta Homo_sapiens.GRCh37.dna.primary_assembly.fa \
     athena_training_bins.bed.gz \
     athena_training_bins.annotated.bed.gz
 ```
 
 Don't worry about correlations between various annotation tracks -- this correlation structure will be handled in [step 5, below](https://github.com/talkowski-lab/athena#step-5).  
+
+#### Customizing UCSC Genome Browser track queries:  
+Athena supports a limited range of conditional filtering and column manipulation for UCSC tracks.  
+
+By default, Athena will extract the minimal BED coordinate information for each track (`chrom`, `start`, `end`).  
+
+Additional columns or column filters can be specified by adding a `:` after the track name (`-u`/`--ucsc-track`).  
+
+The syntax for these options follows a set of conventions:
+  * Track name must be specified only once, and directly after `-u`/`--ucsc-track`  
+  * All desired columns must be listed as a column-delimited list after the track name, separated by `:`  
+  * Column filtering must be specified directly after the desired column using any of a limited set of operators (`=`, `!=`, `<`, `>`, `<=`, `>=`)  
+
+*Warning #1:* be careful to wrap modified track names in quotes, because some operators (especially `>`) can be interpreted as bash flow control characters.
+
+If fewer than three columns are specified, `chrom`, `chromStart`, and `chromEnd` will always be appended.  
+
+If no filtering is specified for a given column, no filters will be applied.  
+
+The exact syntax will vary based on columns available for each track, which can be checked using the [UCSC Table Browser](http://genome.ucsc.edu/cgi-bin/hgTables).  
+
+*Example Use Case #1*
+We could restrict the segmental duplications annotation from the example above to only those with high sequence identity as follows:
+```
+$ athena annotate-bins -z \
+    ... 
+    -u "genomicSuperDups:fracMatch>0.99" -a coverage -n segdup_coverage_high_identity \
+    ...
+```
+
+*Example Use Case #2*
+We could calculate the max sequence identity among segmental duplications overlapping each bin as follows:
+```
+$ athena annotate-bins -z \
+    ... 
+    -u "genomicSuperDups:fracMatch" -a map-max -n max_segdup_identity \
+    ...
+```
+
+*Warning #2 & Example Use Cases #3-4*  
+It is recommended to check the column names for each UCSC track before querying, as some UCSC tracks have non-standard coordinate field designations.  
+
+For instance, the RepeatMasker track uses `genoName`/`genoStart`/`genoEnd` instead of `chrom`/`chromStart`/`chromEnd`.  
+
+Thus, we could count all RepeatMasker elements per bin as follows:
+```
+$ athena annotate-bins -z \
+    ... 
+    -u "rmsk:genoName,genoStart,genoEnd" -a count -n repeatmasker_count \
+    ...
+```
+
+And we could further restrict this count to only _SINE_ elements as follows:
+```
+$ athena annotate-bins -z \
+    ... 
+    -u "rmsk:genoName,genoStart,genoEnd,repClass=SINE" -a count -n repeatmasker_sine_count \
+    ...
+```
 
 --- 
 

@@ -14,12 +14,16 @@ import pandas as pd
 from numpy import nan
 from datetime import datetime
 from athena.mutrate import ucsc
+from athena.utils.misc import chromsort
 import pyBigWig
+from gzip import GzipFile
 from os import path
 
 
-# Annotate bins with a single BedTool
 def add_bedtool_track(bins, track, action):
+    """
+    Annotate bins with a single BedTool
+    """
     
     if action == 'count':
         bins = bins.intersect(track, c=True, wa=True)
@@ -31,7 +35,7 @@ def add_bedtool_track(bins, track, action):
     elif action == 'coverage':
         bins.saveas()
         cov = [f[-1] for f in bins.coverage(track)]
-        df = pd.read_csv(bins.fn, sep='\t', header=None)
+        df = pd.read_csv(bins.fn, sep='\t', header=None, comment='#')
         df['cov'] = cov
         bins = pybedtools.BedTool.from_dataframe(df)
 
@@ -42,8 +46,10 @@ def add_bedtool_track(bins, track, action):
     return bins
 
 
-# Annotate bins from a bigWig or bigBed file
 def add_bigwig_track(bins, track, action):
+    """
+    Annotate bins from a bigWig or bigBed file
+    """
     
     # Load bigWig track
     bigwig = pyBigWig.open(track)
@@ -51,15 +57,21 @@ def add_bigwig_track(bins, track, action):
     operation = action.replace('map-', '')
 
     def _bw_lookup(interval, bigwig, operation='mean'):
-        if 'chr' in list(bigwig.chroms().keys())[0]:
+        # print('Starting {0}:{1}-{2}'.format(interval[0], str(interval[1]), str(interval[2])))
+        eligible_chroms = list(bigwig.chroms().keys())
+        if 'chr' in eligible_chroms[0]:
             if 'chr' not in interval.chrom:
                 interval.chrom = 'chr' + interval.chrom
-        if operation == 'sum':
-            val = bigwig.stats(interval.chrom, interval.start, interval.end, 'mean')[0]
-            if val is not None:
-                val = val * len(interval)
+        if interval.chrom in eligible_chroms \
+        and interval.end <= bigwig.chroms(interval.chrom):
+            if operation == 'sum':
+                val = bigwig.stats(interval.chrom, interval.start, interval.end, 'mean')[0]
+                if val is not None:
+                    val = val * len(interval)
+            else:
+                val = bigwig.stats(interval.chrom, interval.start, interval.end, operation)[0]
         else:
-            val = bigwig.stats(interval.chrom, interval.start, interval.end, operation)[0]
+            val = None
         return val
 
     values = [_bw_lookup(f, bigwig, operation) for f in bins]
@@ -71,8 +83,10 @@ def add_bigwig_track(bins, track, action):
     return bins
 
 
-# Map a bed to bins
 def add_bedgraph_track(bins, track, action):
+    """
+    Map a bed to bins
+    """
 
     # Assumes column to map is last
     if isinstance(track, pybedtools.BedTool):
@@ -89,8 +103,11 @@ def add_bedgraph_track(bins, track, action):
     return bins
 
 
-# Clean up long floats in last column of bins
 def float_cleanup(bins, maxfloat, start_idx):
+    """
+    Clean up long floats in last column of bins
+    """
+
     df = pd.read_csv(bins.fn, sep='\t', header=None)
     df.iloc[:, start_idx:] = df.iloc[:, start_idx:].replace('.',nan).apply(pd.to_numeric).round(maxfloat)
     bins = pybedtools.BedTool.from_dataframe(df)
@@ -98,8 +115,11 @@ def float_cleanup(bins, maxfloat, start_idx):
     return bins
 
 
-# Wrapper function to add a single local track
 def add_local_track(bins, track, action, maxfloat, quiet):
+    """
+    Wrapper function to add a single local track
+    """
+
     if quiet is False:
         status_msg = '[{0}] athena annotate-bins: Adding track "{1}" ' + \
                      'with action "{2}"'
@@ -118,8 +138,11 @@ def add_local_track(bins, track, action, maxfloat, quiet):
     return bins
 
 
-# Wrapper function to add a single ucsc track
-def add_ucsc_track(bins, db, track, action, query_regions, maxfloat, ucsc_ref, quiet):
+def add_ucsc_track(bins, db, track, action, query_regions, maxfloat, ucsc_ref, 
+                   chromsplit, quiet):
+    """
+    Wrapper function to add a single ucsc track
+    """
 
     table, columns, conditions = ucsc.parse_table_arg(track)
 
@@ -129,11 +152,26 @@ def add_ucsc_track(bins, db, track, action, query_regions, maxfloat, ucsc_ref, q
                      '"{1}" with action "{2}"'
         print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
                                 table, action))
-        ures = ucsc.query_ucsc(bins, table, columns, conditions, 
-                               db, action, query_regions)
+        if chromsplit:
+            contigs = chromsort(list(set([f.chrom for f in bins])))
+            contigs = ['chr' + k for k in contigs]
+            sub_ures = [ucsc.subquery_ucsc(bins, table, columns, conditions, db, 
+                                      action, query_regions, k) for k in contigs]
+            if isinstance(sub_ures[0], pybedtools.BedTool):
+                ures = sub_ures[0]
+                ures = ures.cat(*sub_ures[1:], postmerge=False)
+            elif isinstance(sub_ures[0], str):
+                ures = sub_ures[0]
+            else:
+                err = 'QUERY RESULTS ERROR: Unknown query return format from ' + \
+                      'table "{0}" for reference "{1}"'
+                exit(err.format(table, ucsc_ref))
+        else:
+            ures = ucsc.query_ucsc(bins, table, columns, conditions, 
+                                   db, action, query_regions)
     else:
         from sys import exit
-        err = 'UCSC ERROR: Could not find table "{0}" for reference "{1}"'
+        err = 'QUERY ERROR: Could not find table "{0}" for reference "{1}"'
         exit(err.format(table, ucsc_ref))
 
     # Add track to bins
@@ -149,9 +187,14 @@ def add_ucsc_track(bins, db, track, action, query_regions, maxfloat, ucsc_ref, q
     return bins
 
 
-# Annotate nucleotide content from a reference fasta
 def add_nuc_content(bins, fasta, maxfloat, quiet):
+    """
+    Annotate nucleotide content from a reference fasta
+    """
+    
     bins.saveas()
+    if path.splitext(fasta)[1] in '.bgz .gz .gzip'.split():
+        fasta = GzipFile(fasta)
     pct_gc = [f[4] for f in bins.cut(range(3)).nucleotide_content(fi=fasta)]
     df = pd.read_csv(bins.fn, sep='\t', header=None)
     df['pct_gc'] = pct_gc
@@ -160,9 +203,11 @@ def add_nuc_content(bins, fasta, maxfloat, quiet):
     return bins
 
 
-# Master bin annotation function
 def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref, 
-                  actions, fasta, maxfloat, quiet):
+                  actions, fasta, maxfloat, ucsc_chromsplit, quiet):
+    """
+    Master bin annotation function
+    """
 
     # Parse & sanity check all track inputs
     n_all_tracks = len(tracks) + len(ucsc_tracks)
@@ -180,7 +225,13 @@ def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref,
 
 
     # Load bins & subset to specific chromosomes/ranges, if optioned
-    bins = pybedtools.BedTool(bins)
+    # Note: must read contents from file due to odd utf-8 decoding behavior for
+    # bgzipped BED files
+    if path.splitext(bins)[1] in '.bgz .gz .gzip'.split():
+        bins = ''.join(s.decode('utf-8') for s in GzipFile(bins).readlines())
+    else:
+        bins = open(bins, 'r').readlines()
+    bins = pybedtools.BedTool(bins, from_string=True)
     if chroms is not None:
         chrlist = chroms.split(',')
         bins = bins.filter(lambda x: x.chrom in chrlist).saveas()
@@ -215,7 +266,7 @@ def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref,
         for track in ucsc_tracks:
             action = actions[track_counter]
             bins = add_ucsc_track(bins, db, track, action, query_regions, 
-                                  maxfloat, ucsc_ref, quiet)
+                                  maxfloat, ucsc_ref, ucsc_chromsplit, quiet)
             track_counter += 1
 
         # Close UCSC connection

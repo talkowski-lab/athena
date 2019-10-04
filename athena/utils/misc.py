@@ -14,13 +14,45 @@ from scipy.stats import chi2
 import pybedtools
 
 
-# Bgzip a file
+
 def bgzip(filename):
+    """
+    Bgzip a file
+    """
+
     subprocess.run(['bgzip', '-f', filename])
 
 
-# Chi-squared test for deviation from Hardy-Weinberg equilibrium
+def chromsort(contigs):
+    """
+    Sort a list of strings according to chromosome order
+    """
+
+    def _clean_contig_prefixes(contig):
+        return contig.replace('chr', '').replace('Chr', 'chr')
+
+    def _is_numeric_contig(contig):
+        contig = _clean_contig_prefixes(contig)
+        try:
+            int(contig)
+            return True
+        except:
+            return False
+
+    def numeric_sort(contigs):
+        return sorted(contigs, key=lambda k: int(_clean_contig_prefixes(k)))
+
+    nc = numeric_sort([k for k in contigs if _is_numeric_contig(k)])
+    nnc = sorted([k for k in contigs if not _is_numeric_contig(k)])
+
+    return nc + nnc
+
+
 def hwe_chisq(record):
+    """
+    Chi-squared test for deviation from Hardy-Weinberg equilibrium
+    """
+
     # Get observed genotype counts
     aa_obs = record.info['N_HOMREF']
     Aa_obs = record.info['N_HET']
@@ -45,8 +77,10 @@ def hwe_chisq(record):
     return p
 
 
-# Convert a pysam.VariantFile (vcf) to a BED
 def vcf2bed(vcf, breakpoints=False):
+    """
+    Convert a pysam.VariantFile (vcf) to a BED
+    """
 
     intervals = ''
     
@@ -73,3 +107,4 @@ def vcf2bed(vcf, breakpoints=False):
     bed = pybedtools.BedTool(intervals, from_string=True)
 
     return bed
+
