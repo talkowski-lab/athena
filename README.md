@@ -86,11 +86,11 @@ Conceptually, this filtering step aims to accomplish a few points:
 2. Restrict to a subset of near-neutral variants, as these will limit the degree to which selection confounds mutation rate estimates  
 3. Restrict to high-quality variants to reduce the influence of purely technical factors in mutation rate estimates  
 
-For instance, to generate a training set of deletions from the [gnomAD-SV v2 dataset](https://gnomad.broadinstitute.org/downloads) (`gnomad_v2_sv.sites.vcf.gz`) for a deletion mutation rate model, you could run the following:  
+For instance, to generate a training set of deletions from the [gnomAD-SV v2.1 dataset](https://gnomad.broadinstitute.org/downloads) (`gnomad_v2.1_sv.sites.vcf.gz`) for a deletion mutation rate model, you could run the following:  
 
 ```
-$ wget https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2_sv.sites.vcf.gz
-$ wget https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2_sv.sites.vcf.gz.tbi
+$ wget https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2.1_sv.sites.vcf.gz
+$ wget https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2.1_sv.sites.vcf.gz.tbi
 $ athena vcf-filter -z \
     --exclude-chroms X,Y \
     --svtypes DEL \
@@ -100,11 +100,11 @@ $ athena vcf-filter -z \
     --minAN 20402 \
     --minQUAL 100 \
     --pHWE 0.01 \
-    gnomad_v2_sv.sites.vcf.gz \
+    gnomad_v2.1_sv.sites.vcf.gz \
     athena_training_deletions.vcf.gz
 ```
 
-The above command will return a set of 112,429 rare, high-quality autosomal deletions from gnomAD-SV for training a deletion mutation rate model downstream.  
+The above command will return a set of 96,464 rare, high-quality autosomal deletions from gnomAD-SV for training a deletion mutation rate model downstream.  
 
 See `data/` for a description of the file provided to `--blacklist`.  
 
@@ -125,33 +125,33 @@ This will print two distributions directly to the console:
 ```
 SV spacing quantiles:
 ---------------------
-25.0%: 0 bp
-50.0%: 4,266 bp
-75.0%: 13,041 bp
-90.0%: 25,352 bp
-95.0%: 35,624 bp
-99.0%: 59,609 bp
-99.9%: 104,926 bp
+25.0%: 143 bp
+50.0%: 5,556 bp
+75.0%: 15,561 bp
+90.0%: 29,410 bp
+95.0%: 40,475 bp
+99.0%: 67,920 bp
+99.9%: 114,766 bp
 
 SV size quantiles:
 ------------------
-25.0%: 132 bp
-50.0%: 640 bp
-75.0%: 2,743 bp
-90.0%: 7,170 bp
-95.0%: 11,953 bp
-99.0%: 42,042 bp
-99.9%: 150,345 bp
+25.0%: 117 bp
+50.0%: 631 bp
+75.0%: 3,132 bp
+90.0%: 8,060 bp
+95.0%: 13,127 bp
+99.0%: 46,221 bp
+99.9%: 156,913 bp
 ```
 
-From the first distribution (`SV spacing`), we can observe that over half of all deletions are no farther than 4 kilobases away from the next-nearest deletion, which means that bin sizes of several kilobases should result in reasonably dense training data.  
+From the first distribution, `SV spacing`, we can observe that over half of all deletions are no farther than 6 kilobases away from the next-nearest deletion, which means that bin sizes of several kilobases should result in reasonably dense training data.  
 
-And based on the second distribution (`SV size`), we can also see that 99% of all deletions in the training set are smaller than 43kb, which means that we probably do not need to extend the training of our 2D model beyond \~40kb to capture almost all of the informative 2D signal.  
+And based on the second distribution, `SV size`, we can also see that 99% of all deletions in the training set are smaller than 47kb, which means that we probably do not need to extend the training of our 2D model beyond \~50kb to capture almost all of the informative 2D signal.  
 
 Based on this logic along with some approximate rounding, we can decide on the two key parameters used in the remaining steps of the mutation rate model:
 ```
-1D bin size: 4kb
-2D maximum bin-pair distance: 40kb
+1D bin size: 5kb
+2D maximum bin-pair distance: 50kb
 ```
 
 --- 
@@ -162,19 +162,19 @@ The next step is to segment the genome into sequential, uniform bins.
 
 These bins will only be used for training the mutation rate model. Once trained, you can extend the mutation rate model beyond this subset of training bins.  
 
-Following [the example from step 2](https://github.com/talkowski-lab/athena#step-2) (above), we can generate 4kb bins for all autosomes using `athena make-bins`.  
+Following [the example from step 2](https://github.com/talkowski-lab/athena#step-2) (above), we can generate 5kb bins for all autosomes using `athena make-bins`.  
 
-We can also introduce any number of `--blacklist` BED files, which will exclude bins overlapping the blacklist(s) from being included in model training. We can also apply a buffer around the elements in the blacklists. For this example, we will exclude all bins within ±4kb of the intervals used for SV blacklisting ([see step 1](https://github.com/talkowski-lab/athena#step-1), above) as well as all bins overlapping any unalignable (i.e., N-masked) regions of the reference genome.  
+We can also introduce any number of `--blacklist` BED files, which will exclude bins overlapping the blacklist(s) from being included in model training. We can also apply a buffer around the elements in the blacklists. For this example, we will exclude all bins within ±5kb of the intervals used for SV blacklisting ([see step 1](https://github.com/talkowski-lab/athena#step-1), above) as well as all bins overlapping any unalignable (i.e., N-masked) regions of the reference genome.  
 
 We can create these bins as follows:
 ```
 $ athena make-bins -z \
     -x data/athena.SV_selection_blacklist.v1.GRCh37.bed.gz \
     -x data/GRCh37.Nmask.bed.gz \
-    --buffer 4000 \
+    --buffer 5000 \
     --exclude-chroms X,Y,M \
     data/GRCh37.genome \
-    4000 \
+    5000 \
     athena_training_bins.bed.gz
 ```
 
@@ -206,7 +206,7 @@ Currently, supported data sources are as follows:
  2. If any UCSC tracks are requested, the UCSC reference build must also be specified with `--ucsc-ref`. Athena will automatically handle necessary conversions between GRC & UCSC contig nomenclature (e.g., `chr1` vs `1`).  
  3. Specifying `--fasta` adds a `pct_gc` annotation, which is the GC content of each bin.  
 
-The precise annotations added at this stage are up to the user.  
+The exact annotations added at this stage are for the user to decide.  
 
 For example, we could annotate the bins from [step 3 (above)](https://github.com/talkowski-lab/athena#step-3) with the following six tracks:
  1. Counts per bin vs. a custom local annotation file (`my_local_annotation.bed`)
@@ -251,15 +251,16 @@ The syntax for these options follows a set of conventions:
   * All desired columns must be listed as a column-delimited list after the track name, separated by `:`  
   * Column filtering must be specified directly after the desired column using any of a limited set of operators (`=`, `!=`, `<`, `>`, `<=`, `>=`)  
 
-*Warning #1:* be careful to wrap modified track names in quotes, because some operators (especially `>`) can be interpreted as bash flow control characters.
-
 If fewer than three columns are specified, `chrom`, `chromStart`, and `chromEnd` will always be appended.  
 
 If no filtering is specified for a given column, no filters will be applied.  
 
 The exact syntax will vary based on columns available for each track, which can be checked using the [UCSC Table Browser](http://genome.ucsc.edu/cgi-bin/hgTables).  
 
-*Example Use Case #1*
+**Warning #1**  
+Be careful to wrap modified track names in quotes, because some operators (especially `>`) can be interpreted as bash flow control characters.
+
+**Example Use Case #1**  
 We could restrict the segmental duplications annotation from the example above to only those with high sequence identity as follows:
 ```
 $ athena annotate-bins -z \
@@ -268,7 +269,7 @@ $ athena annotate-bins -z \
     ...
 ```
 
-*Example Use Case #2*
+**Example Use Case #2**  
 We could calculate the max sequence identity among segmental duplications overlapping each bin as follows:
 ```
 $ athena annotate-bins -z \
@@ -277,7 +278,7 @@ $ athena annotate-bins -z \
     ...
 ```
 
-*Warning #2 & Example Use Cases #3-4*  
+**Warning #2 & Example Use Cases #3-4**  
 It is recommended to check the column names for each UCSC track before querying, as some UCSC tracks have non-standard coordinate field designations.  
 
 For instance, the RepeatMasker track uses `genoName`/`genoStart`/`genoEnd` instead of `chrom`/`chromStart`/`chromEnd`.  
