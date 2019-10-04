@@ -10,7 +10,7 @@ Functions to interact with UCSC Genome Browser database
 
 
 import MySQLdb
-import mysql
+import MySQLdb._mysql as _mysql
 import pybedtools
 import re
 
@@ -21,7 +21,7 @@ default_columns = ['chrom', 'chromStart', 'chromEnd']
 # Open connection to UCSC MySQL database for a specified reference
 def ucsc_connect(build):
     conv = { MySQLdb.FIELD_TYPE.LONG: int }
-    db = mysql.connect(host='genome-mysql.cse.ucsc.edu', user='genome', 
+    db = _mysql.connect(host='genome-mysql.cse.ucsc.edu', user='genome', 
                         passwd='', db=build, conv=conv)
     return db
 

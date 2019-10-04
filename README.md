@@ -60,13 +60,13 @@ Options:
   --help  Show this message and exit.
 
 Commands:
-  annotate    Annotate bins
-  count-sv    Intersect SV and bins
-  decomp      Decompose bin annotations
-  make-bins   Create bins
-  query       Mutation rate lookup
-  vcf-filter  Filter an input VCF
-  vcf-stats   Get SV size & spacing
+  annotate-bins  Annotate bins
+  count-sv       Intersect SV and bins
+  eigen-bins     Eigendecomposition of annotations
+  make-bins      Create sequential bins
+  query          Mutation rate lookup
+  vcf-filter     Filter an input VCF
+  vcf-stats      Get SV size & spacing
 ```
 
 Athena has numerous subcommands. Specify `--help` with any subcommand to see a list of options available.  

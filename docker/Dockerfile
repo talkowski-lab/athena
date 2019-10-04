@@ -17,21 +17,23 @@ RUN apt-get -qqy update \
 RUN conda update -n base conda
 RUN conda create --name=olympus python=3.7
 RUN conda config --set ssl_verify no
+ENV CONDA_DEFAULT_ENV olympus
+RUN echo "source activate olympus" >> ~/.bashrc
+ENV PATH /opt/conda/envs/olympus/bin:$PATH
 RUN conda install -n olympus -y -c bioconda numpy scipy pandas scikit-learn
 RUN conda install -n olympus -y -c bioconda pysam
 RUN conda install -n olympus -y -c bioconda pybedtools bedtools=2.27.0
 RUN conda install -n olympus -y -c bioconda bzip2
 RUN conda install -n olympus -y -c bioconda click
-RUN conda install -n olympus -y -c bioconda mysqlclient mysql
+RUN apt-get -qqy update && \
+    apt-get -qqy install --fix-missing default-libmysqlclient-dev
+RUN conda install -n olympus -y -c bioconda mysqlclient
 RUN conda install -n olympus -y -c bioconda pybigwig
-ENV CONDA_DEFAULT_ENV olympus
-RUN echo "source activate olympus" >> ~/.bashrc
-ENV PATH /opt/conda/envs/olympus/bin:$PATH
 
 # Clone & install Athena
 RUN git clone https://c9f6da1fb0dd9d5379c313700a1083f9633be849@github.com/talkowski-lab/athena /opt/athena \
     && cd /opt/athena \
-    && git checkout c713fea32337fee1f4bba2e936f6d965e83b545f \
+    && git checkout 7aeaddb0a178da4d66685c3a4fdfd5daf27d85e9 \
     && cd -
 RUN cd /opt/athena \
     && pip install -e .
