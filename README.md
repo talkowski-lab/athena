@@ -16,7 +16,7 @@ Distributed under terms of the [MIT License](/LICENSE) (see `LICENSE`).
 #### The Athena workflow
 _Mutation rate modeling_ 
   1. [Filter SVs for mutation rate training](https://github.com/talkowski-lab/athena#step-1)  
-  2. [Calculate SV size & spacing distributions](https://github.com/talkowski-lab/athena#step-2) (Optional)   
+  2. [Calculate SV size & spacing distributions](https://github.com/talkowski-lab/athena#step-2) (_optional_)   
   3. [Create 1D training bins](https://github.com/talkowski-lab/athena#step-3)   
   4. [Annotate 1D training bins](https://github.com/talkowski-lab/athena#step-4)  
   5. [Collapse redundant 1D annotations](https://github.com/talkowski-lab/athena#step-5)  
@@ -35,8 +35,8 @@ _Dosage sensitivity modeling_
 The recommended way to run Athena is from its dedicated Docker container. This will handle all dependencies and installation for you, and ensure you are running the latest version.
 
 ```
-$ docker pull talkowski/athena
-$ docker run --rm -it talkowski/athena
+$ docker pull rlcollins/athena
+$ docker run --rm -it rlcollins/athena
 ```
 
 ## Manual installation
@@ -69,39 +69,7 @@ Commands:
   vcf-stats   Get SV size & spacing
 ```
 
-Athena has numerous subcommands. Specify `--help` with any subcommand to see a list of options available. For example:
-```
-$ athena vcf-filter --help
-Usage: athena vcf-filter [OPTIONS] VCF OUT
-
-  Filter an input VCF
-
-Options:
-  --include-chroms TEXT  Chromosomes to include (comma-separated) [default:
-                         include all chromosomes]
-  --exclude-chroms TEXT  Chromosomes to exclude (comma-separated) [default:
-                         exclude no chromosomes]
-  --svtypes TEXT         SV classes to include (comma-separated) [default: all
-                         SVs]
-  -x, --blacklist TEXT   BED file of regions to exclude, based on SV overlap
-                         [default: None]
-  --minAF FLOAT          Minimum allowed allele frequency [default: 0]
-  --maxAF FLOAT          Maximum allowed allele frequency [default: 1.0]
-  --minAC INTEGER        Minimum allowed allele count [default: 0]
-  --maxAC INTEGER        Maximum allowed allele count [default: None]
-  --vcf-filters TEXT     VCF FILTER statuses to be included [default: PASS]
-  --minQUAL INTEGER      Minimum allowed QUAL score [default: 0]
-  --maxQUAL INTEGER      Maximum allowed QUAL score [default: None]
-  --pHWE FLOAT           Minimum Hardy-Weinberg equilibrium p-value to include
-                         [default: Do not filter on HWE]
-  --keep-infos TEXT      INFO fields to retain in output VCF (comma-
-                         separated). Will always retain the following: END,
-                         CHR2, SVTYPE, SVLEN. Specifying "ALL" will keep all
-                         INFO. Note: this does _not_ filter records based on
-                         INFO. [default: Keep no other INFO]
-  -z, --bgzip            Compress output with bgzip
-  --help                 Show this message and exit.
-```
+Athena has numerous subcommands. Specify `--help` with any subcommand to see a list of options available.  
 
 --- 
 
@@ -124,16 +92,16 @@ For instance, to generate a training set of deletions from the [gnomAD-SV v2 dat
 $ wget https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2_sv.sites.vcf.gz
 $ wget https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2_sv.sites.vcf.gz.tbi
 $ athena vcf-filter -z \
-  	--exclude-chroms X,Y \
-  	--svtypes DEL \
-  	--blacklist data/athena.SV_selection_blacklist.v1.GRCh37.bed.gz \
-  	--maxAF 0.01 \
-  	--minAC 1 \
+    --exclude-chroms X,Y \
+    --svtypes DEL \
+    --blacklist data/athena.SV_selection_blacklist.v1.GRCh37.bed.gz \
+    --maxAF 0.001 \
+    --minAC 1 \
     --minAN 20402 \
-  	--minQUAL 100 \
-  	--pHWE 0.01 \
-  	gnomad_v2_sv.sites.vcf.gz \
-  	athena_training_deletions.vcf.gz
+    --minQUAL 100 \
+    --pHWE 0.01 \
+    gnomad_v2_sv.sites.vcf.gz \
+    athena_training_deletions.vcf.gz
 ```
 
 The above command will return a set of 118,927 rare, high-quality autosomal deletions from gnomAD-SV for training a deletion mutation rate model downstream.  
@@ -201,18 +169,18 @@ We can also introduce any number of `--blacklist` BED files, which will exclude 
 We can create these bins as follows:
 ```
 $ athena make-bins -z \
-  	-x data/athena.SV_selection_blacklist.v1.GRCh37.bed.gz \
-  	-x GRCh37.Nmask.bed.gz \
-  	--buffer 4000 \
-  	--exclude-chroms X,Y,M \
-  	GRCh37.genome \
-  	4000 \
-  	athena_training_bins.bed.gz
+    -x data/athena.SV_selection_blacklist.v1.GRCh37.bed.gz \
+    -x GRCh37.Nmask.bed.gz \
+    --buffer 4000 \
+    --exclude-chroms X,Y,M \
+    GRCh37.genome \
+    4000 \
+    athena_training_bins.bed.gz
 ```
 
 Where:
   * `GRCh37.Nmask.bed.gz` is a BED file containing all N-masked regions of the reference genome. This file is available from numerous sources, including [UCSC](https://genome.ucsc.edu).  
-  * `GRCh37.genome` is a two-column, tab-delimited file [per BEDTools spec](https://bedtools.readthedocs.io/en/latest/content/tools/genomecov.html).  
+  * `GRCh37.genome` is a two-column, tab-delimited file [per the BEDTools specifications](https://bedtools.readthedocs.io/en/latest/content/tools/genomecov.html).  
 
 --- 
 

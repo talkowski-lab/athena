@@ -19,10 +19,10 @@ RUN conda create --name=olympus python=3.7
 RUN conda config --set ssl_verify no
 RUN conda install -n olympus -y -c bioconda numpy scipy pandas scikit-learn
 RUN conda install -n olympus -y -c bioconda pysam
-RUN conda install -n olympus -y -c bioconda pybedtools
+RUN conda install -n olympus -y -c bioconda pybedtools bedtools=2.27.0
 RUN conda install -n olympus -y -c bioconda bzip2
 RUN conda install -n olympus -y -c bioconda click
-RUN conda install -n olympus -y -c bioconda mysqlclient
+RUN conda install -n olympus -y -c bioconda mysqlclient mysql
 RUN conda install -n olympus -y -c bioconda pybigwig
 ENV CONDA_DEFAULT_ENV olympus
 RUN echo "source activate olympus" >> ~/.bashrc
