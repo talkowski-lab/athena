@@ -14,6 +14,7 @@ from athena import mutrate
 from athena.utils.misc import bgzip as bgz
 from os import path
 from gzip import GzipFile
+from datetime import datetime
 
 
 @click.command(name='annotate-bins')
@@ -117,7 +118,19 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
         header = GzipFile(bins).readline().decode('utf-8').rstrip()
     else:
         header = open(bins, 'r').readline().rstrip()
-    header = header.replace('#', '')
+    if header.startswith('#'):
+      header = header.replace('#', '')
+    else:
+      msg = 'INPUT WARNING: '
+      status_msg = '[{0}] athena annotate-bins: No header line detected. ' + \
+                   'Adding default header.'
+      print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
+      n_addl_col = len(header.split('\t')) - 3
+      header = 'chr\tstart\tend'
+      if n_addl_col > 0:
+        default_colname = 'user_col_{0}'
+        default_cols = [default_colname.format(str(i+1)) for i in range(n_addl_col)]
+        header = header + '\t' + '\t'.join(default_cols)
     newheader = header + '\t' + '\t'.join(list(track_names))
     if fasta is not None:
         newheader = '\t'.join([newheader, 'pct_gc'])
