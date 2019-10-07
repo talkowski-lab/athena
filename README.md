@@ -89,8 +89,11 @@ Conceptually, this filtering step aims to accomplish a few points:
 For instance, to generate a training set of deletions from the [gnomAD-SV v2.1 dataset](https://gnomad.broadinstitute.org/downloads) (`gnomad_v2.1_sv.sites.vcf.gz`) for a deletion mutation rate model, you could run the following:  
 
 ```
+# First, download the gnomAD-SV v2.1 VCF
 $ wget https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2.1_sv.sites.vcf.gz
 $ wget https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2.1_sv.sites.vcf.gz.tbi
+
+# Second, filter the gnomad-SV VCF with Athena
 $ athena vcf-filter -z \
     --exclude-chroms X,Y \
     --svtypes DEL \

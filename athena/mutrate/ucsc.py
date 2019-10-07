@@ -10,7 +10,7 @@ Functions to interact with UCSC Genome Browser database
 
 
 import MySQLdb
-import MySQLdb._mysql as _mysql
+from MySQLdb import _mysql
 import pybedtools
 import re
 
