@@ -9,6 +9,7 @@ Annotate a binned genome
 """
 
 
+import csv
 import pybedtools
 import pandas as pd
 from numpy import nan
@@ -18,6 +19,23 @@ from athena.utils.misc import chromsort
 import pyBigWig
 from gzip import GzipFile
 from os import path
+
+
+def parse_track_file(infile):
+    """
+    Parse an input text file with a list of tracks to annotate
+    """
+
+    tracks, actions, names = ([], [], [])
+
+    with open(infile) as fin:
+        reader = csv.reader(fin, delimiter='\t')
+        for track, action, name in reader:
+            tracks.append(track)
+            actions.append(action.lower())
+            names.append(name)
+
+    return tracks, actions, names
 
 
 def add_bedtool_track(bins, track, action):

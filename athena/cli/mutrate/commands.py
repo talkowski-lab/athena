@@ -47,6 +47,16 @@ from gzip import GzipFile
               'each new column in the header of the annotated bins file. ' +
               'Follows the same rules for ordering as --actions.',
               multiple=True)
+@click.option('--track-list', default=None, 
+              help='List of local tracks to annotate. Must be specified as three-' +
+              'column, tab-delimited text file. One row per track. Columns ' +
+              'correspond to argumenmts passed as -t, -a, and -n, respectively. ' +
+              'Will be added to other tracks directly specified with -t/-a/-n.')
+@click.option('--ucsc-list', default=None, 
+              help='List of UCSC tracks to annotate. Must be specified as three-' +
+              'column, tab-delimited text file. One row per track. Columns ' +
+              'correspond to argumenmts passed as -u, -a, and -n, respectively. ' +
+              'Will be added to other tracks directly specified with -u/-a/-n.')
 @click.option('-r', '--ucsc-ref', default=None, type=click.Choice(['hg18', 'hg19', 'hg38']),
               help='UCSC reference genome to use with --ucsc-tracks.')
 @click.option('--fasta', default=None, help='Reference genome fasta file. If ' +
@@ -63,13 +73,38 @@ from gzip import GzipFile
 @click.option('-q', '--quiet', is_flag=True, default=False, 
               help='Silence progress messages.')
 def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_ref, 
-                 actions, track_names, fasta, no_ucsc_chromsplit, maxfloat, 
-                 bgzip, quiet):
+                 actions, track_names, track_list, ucsc_list, fasta, 
+                 no_ucsc_chromsplit, maxfloat, bgzip, quiet):
     """
     Annotate bins
     """
 
+    # Sanitize & format inputs
     ucsc_chromsplit = not no_ucsc_chromsplit
+    track = list(track)
+    ucsc_track = list(ucsc_track)
+    actions = tuple([a.lower() for a in actions])
+
+    # Parse file with lists of tracks (if provided) and add to track lists
+    if track_list is not None:
+      supp_tracks, supp_actions, supp_names = mutrate.parse_track_file(track_list)
+      track = track + supp_tracks
+      n_ucsc_tracks = len(ucsc_track)
+      if n_ucsc_tracks > 0:
+        actions = tuple(list(actions[:n_ucsc_tracks]) + supp_actions \
+                        + list(actions[n_ucsc_tracks:]))
+        track_names = tuple(list(track_names[:n_ucsc_tracks]) + supp_names \
+                        + list(track_names[n_ucsc_tracks:]))
+      else:
+        actions = tuple(list(actions) + supp_actions)
+        track_names = tuple(list(track_names) + supp_names)
+
+    # Parse file with list of UCSC tracks (if provided and add to track lists)
+    if ucsc_list is not None:
+      supp_ucsc_tracks, supp_ucsc_actions, supp_ucsc_names = mutrate.parse_track_file(ucsc_list)
+      ucsc_track = ucsc_track + supp_ucsc_tracks
+      actions = tuple(list(actions) + supp_ucsc_actions)
+      track_names = tuple(list(track_names) + supp_ucsc_names)
 
     # Handle header reformatting
     n_tracks = len(track) + len(ucsc_track)
@@ -88,8 +123,8 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
         newheader = '\t'.join([newheader, 'pct_gc'])
     
     # Annotate bins
-    newbins = mutrate.annotate_bins(bins, include_chroms, ranges, list(track), 
-                                    list(ucsc_track), ucsc_ref, actions, fasta,
+    newbins = mutrate.annotate_bins(bins, include_chroms, ranges, track, 
+                                    ucsc_track, ucsc_ref, actions, fasta,
                                     maxfloat, ucsc_chromsplit, quiet)
 
     # Save annotated bins
