@@ -118,15 +118,13 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
         header = GzipFile(bins).readline().decode('utf-8').rstrip()
     else:
         header = open(bins, 'r').readline().rstrip()
-    if header.startswith('#'):
-      header = header.replace('#', '')
-    else:
+    if not header.startswith('#'):
       msg = 'INPUT WARNING: '
       status_msg = '[{0}] athena annotate-bins: No header line detected. ' + \
                    'Adding default header.'
       print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
       n_addl_col = len(header.split('\t')) - 3
-      header = 'chr\tstart\tend'
+      header = '#chr\tstart\tend'
       if n_addl_col > 0:
         default_colname = 'user_col_{0}'
         default_cols = [default_colname.format(str(i+1)) for i in range(n_addl_col)]

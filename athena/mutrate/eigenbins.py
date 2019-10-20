@@ -91,8 +91,11 @@ def get_feature_stats(df_annos, feature_names, pca, pcs, stats_outfile):
         ename = eigen_names[comp]
         for feat in range(df_annos.shape[1]):
             fname = feature_names[feat]
-            spear = tuple(spearmanr(pcs[:, comp], df_annos[:, feat]))
-            corstats[ename].append((fname, spear[0], spear[1]))
+            if np.ptp(df_annos, axis=0)[feat] > 0:
+                spear = tuple(spearmanr(pcs[:, comp], df_annos[:, feat]))
+                corstats[ename].append((fname, spear[0], spear[1]))
+            else:
+                corstats[ename].append((fname, np.nan, np.nan))
 
     # Format results and write to text file
     fout = open(stats_outfile, 'w')
