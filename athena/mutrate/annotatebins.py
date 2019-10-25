@@ -177,7 +177,8 @@ def add_ucsc_track(bins, db, track, action, query_regions, maxfloat, ucsc_ref,
                                       action, query_regions, k) for k in contigs]
             if isinstance(sub_ures[0], pybedtools.BedTool):
                 ures = sub_ures[0]
-                ures = ures.cat(*sub_ures[1:], postmerge=False)
+                if len(sub_ures) > 1:
+                    ures = ures.cat(*sub_ures[1:], postmerge=False)
             elif isinstance(sub_ures[0], str):
                 ures = sub_ures[0]
             else:

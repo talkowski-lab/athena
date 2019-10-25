@@ -218,7 +218,7 @@ def query_ucsc(bins, track, columns, conditions, db, action, query_ranges):
                              columns, conditions)
         # Coerce to GRC nomenclature, if necessary
         if 'chr' not in bins[0]:
-            result = result.each(_check_grc_compliance)
+            result = result.each(_check_grc_compliance).saveas()
 
     else:
         from sys import exit
