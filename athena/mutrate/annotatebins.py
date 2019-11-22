@@ -43,10 +43,8 @@ def add_bedtool_track(bins, track, action):
     Annotate bins with a single BedTool
     """
     
-    if action in 'count any-overlap'.split():
+    if action == 'count'.split():
         bins = bins.intersect(track, c=True, wa=True)
-        if action == 'any-overlap':
-            import pdb; pdb.set_trace()
 
     elif action == 'count-unique':
         bedtool = pybedtools.BedTool(track).sort().merge()
@@ -57,6 +55,14 @@ def add_bedtool_track(bins, track, action):
         cov = [f[-1] for f in bins.coverage(track)]
         df = pd.read_csv(bins.fn, sep='\t', header=None, comment='#')
         df['cov'] = cov
+        bins = pybedtools.BedTool.from_dataframe(df)
+
+    elif action == 'any-overlap':
+        bins.saveas()
+        counts = [min([1, int(f[-1])]) for f \
+                  in bins.intersect(track, c=True, wa=True)]
+        df = pd.read_csv(bins.fn, sep='\t', header=None, comment='#')
+        df['overlap'] = counts
         bins = pybedtools.BedTool.from_dataframe(df)
 
     else:
@@ -146,7 +152,7 @@ def add_local_track(bins, track, action, maxfloat, quiet):
         print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
                                 track, action))
 
-    if action in 'count count-unique coverage'.split():
+    if action in 'count count-unique coverage any-overlap'.split():
         bins = add_bedtool_track(bins, track, action)
 
     elif 'map-' in action:

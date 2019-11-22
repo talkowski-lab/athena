@@ -42,7 +42,7 @@ from datetime import datetime
               '--ucsc-track entries). Must be specified the same number of times ' + 
               'as --tracks and --ucsc-tracks combined.',
               multiple=True, 
-              type=click.Choice(['count', 'count-unique', 'coverage',
+              type=click.Choice(['count', 'count-unique', 'coverage', 'any-overlap', 
                                  'map-mean', 'map-sum', 'map-min', 'map-max']))
 @click.option('-n', '--track-names', default=None, help='Column names to assign to ' +
               'each new column in the header of the annotated bins file. ' +
