@@ -43,8 +43,10 @@ def add_bedtool_track(bins, track, action):
     Annotate bins with a single BedTool
     """
     
-    if action == 'count':
+    if action in 'count any-overlap'.split():
         bins = bins.intersect(track, c=True, wa=True)
+        if action == 'any-overlap':
+            import pdb; pdb.set_trace()
 
     elif action == 'count-unique':
         bedtool = pybedtools.BedTool(track).sort().merge()
