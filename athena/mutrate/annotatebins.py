@@ -43,7 +43,7 @@ def add_bedtool_track(bins, track, action):
     Annotate bins with a single BedTool
     """
     
-    if action == 'count'.split():
+    if action == 'count':
         bins = bins.intersect(track, c=True, wa=True)
 
     elif action == 'count-unique':
@@ -202,7 +202,7 @@ def add_ucsc_track(bins, db, track, action, query_regions, maxfloat, ucsc_ref,
         exit(err.format(table, ucsc_ref))
 
     # Add track to bins
-    if action in 'count count-unique coverage'.split():
+    if action in 'count count-unique coverage any-overlap'.split():
         bins = add_bedtool_track(bins, ures, action)
 
     elif 'map-' in action:
