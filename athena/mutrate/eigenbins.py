@@ -74,13 +74,14 @@ def _sqrt_trans(df, column):
 
 
 # Compute PCA & feature stats
-def get_feature_stats(df_annos, feature_names, pca, pcs, stats_outfile):
+def get_feature_stats(df_annos, feature_names, pca, pcs, stats_outfile, 
+                      eigen_prefix):
     # Compute variance explained
     expvar = list(pca.explained_variance_ratio_)
 
     # Prep feature correlation dictionary
     components = pca.n_components_
-    eigen_names = ['eigenfeature_{0}'.format(i+1) for i in range(components)]
+    eigen_names = ['_'.join([eigen_prefix, str(i+1)]) for i in range(components)]
     corstats = {}
     for name in eigen_names:
         if name not in corstats.keys():
@@ -124,9 +125,10 @@ def float_cleanup(df, maxfloat, start_idx):
 
 
 # Master function for Eigendecomposition of bin annotations
-def decompose_bins(bins, outfile, components=10, log_transform=None, 
+def decompose_bins(bins, outfile, components=10, minvar=None, log_transform=None, 
                    sqrt_transform=None, fill_missing=0, first_column=3, 
-                   maxfloat=5, pca_stats=None, bgzip=False):
+                   maxfloat=5, max_pcs=100, pca_stats=None, 
+                   eigen_prefix='eigenfeature', bgzip=False):
 
     # Disable data scaling warnings
     warnings.filterwarnings(action='ignore', category=DataConversionWarning)
@@ -153,20 +155,24 @@ def decompose_bins(bins, outfile, components=10, log_transform=None,
     df_annos = StandardScaler().fit_transform(df_annos)
 
     # Perform PCA
-    pca = PCA(n_components=components)
+    pcs_to_calc = min([df_annos.shape[1], max_pcs])
+    pca = PCA(n_components=pcs_to_calc)
     pcs = pca.fit_transform(df_annos)
-    eigen_names = ['eigenfeature_{0}'.format(i+1) for i in range(components)]
-    df_pcs = pd.DataFrame(pcs, columns = eigen_names)
+    if minvar is not None:
+        components = len([i for i in np.cumsum(pca.explained_variance_ratio_) \
+                          if i < minvar]) + 1
+    eigen_names = ['_'.join([eigen_prefix, str(i+1)]) for i in range(components)]
+    df_pcs = pd.DataFrame(pcs[:, :components], columns = eigen_names)
 
     # Write output bins with PCs
     if '.gz' in outfile:
         outfile = path.splitext(outfile)[0]
-    out_df = float_cleanup(pd.concat([df_bins, df_pcs], axis=1), maxfloat, 3)
+    out_df = float_cleanup(pd.concat([df_bins, df_pcs], axis=1), maxfloat, first_column)
     out_df.to_csv(outfile, sep='\t', index=False)
     if bgzip:
         bgz(outfile)
 
     # Perform extra assessments of PCA & feature fits, if optioned
     if pca_stats is not None:
-        get_feature_stats(df_annos, feature_names, pca, pcs, pca_stats)
+        get_feature_stats(df_annos, feature_names, pca, pcs, pca_stats, eigen_prefix)
 

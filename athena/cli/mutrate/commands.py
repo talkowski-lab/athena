@@ -152,7 +152,10 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
 @click.argument('bins', type=click.Path(exists=True))
 @click.argument('outfile')
 @click.option('-e', '--eigenfeatures', 'components', type=int, default=10,
-              help='Number of principal components to return. [0]')
+              help='Number of principal components to return. [10]')
+@click.option('--min-variance', type=float, default=None,
+              help='Optional method for specifying number of PCs to return. ' + 
+              'Specify minimum proportion of variance to explain.')
 @click.option('--log-transform', multiple=True, help='List of column names to ' +
               'be log-transformed prior to decomposition. Note that the exact ' +
               'transformation is log10(x+max(x/1000)).')
@@ -166,15 +169,21 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
               help='Skip first N columns of input bins. [3]')
 @click.option('--maxfloat', type=int, default=5, 
               help='Maximum precision of floating-point values. [5]')
+@click.option('--max-pcs', type=int, default=100, help='Maximum number of ' +
+              'principal components to calculate. [100]')
 @click.option('-s', '--stats', default=None,
               help='File to write out Eigenfeature stats.')
+@click.option('-p', '--prefix', default='eigenfeature', help='String prefix to ' +
+              'use when labeling eigenfeatures.')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output BED with bgzip.')
-def annodecomp(bins, outfile, components, log_transform, sqrt_transform, 
-               fill_missing, skip_columns, maxfloat, stats, bgzip):
+def annodecomp(bins, outfile, components, min_variance, log_transform, 
+               sqrt_transform, fill_missing, skip_columns, maxfloat, max_pcs, 
+               stats, prefix, bgzip):
     """
     Eigendecomposition of annotations
     """
-    
-    mutrate.decompose_bins(bins, outfile, components, log_transform, sqrt_transform,
-                           fill_missing, skip_columns, maxfloat, stats, bgzip)
+
+    mutrate.decompose_bins(bins, outfile, components, min_variance, log_transform, 
+                           sqrt_transform, fill_missing, skip_columns, maxfloat, 
+                           max_pcs, stats, prefix, bgzip)
