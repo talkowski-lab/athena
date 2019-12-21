@@ -138,9 +138,10 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, blacklist,
             continue
 
         # Filter by Hardy-Weinberg equilibrium
-        if HWE is not None:
-            if hwe_chisq(record) < HWE:
-                continue
+        if HWE is not None and len(record.alts) < 3:
+            if sum(record.info['AF']) < 1:
+                if hwe_chisq(record) < HWE:
+                    continue
 
         # Clean record
         if keep_infos is not 'ALL':
