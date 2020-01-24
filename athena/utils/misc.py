@@ -14,7 +14,6 @@ from scipy.stats import chi2
 import pybedtools
 
 
-
 def bgzip(filename):
     """
     Bgzip a file

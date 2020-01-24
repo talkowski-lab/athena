@@ -161,6 +161,14 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
               'transformation is log10(x+max(x/1000)).')
 @click.option('--sqrt-transform', multiple=True, help='List of column names to ' +
               'be square root-transformed prior to decomposition.')
+@click.option('--exp-transform', multiple=True, help='List of column names to ' +
+              'be exponential-transformed prior to decomposition. Note that the ' +
+              'exact transformation is e^(x+max(x/1000)).')
+@click.option('--square-transform', multiple=True, help='List of column names to ' +
+              'be square-transformed prior to decomposition.')
+@click.option('--boxcox-transform', multiple=True, help='List of column names to ' +
+              'be Box-Cox power-transformed prior to decomposition. Note that ' + 
+              'the exact transformation is boxcox(x+max(x/1000))')
 @click.option('--fill-missing', type=str, default='0',
               help='Behavior for filling missing values. Can specify numeric ' + 
               'value to fill all missing cells, or "mean"/"median" to ' +
@@ -178,12 +186,13 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output BED with bgzip.')
 def annodecomp(bins, outfile, components, min_variance, log_transform, 
-               sqrt_transform, fill_missing, skip_columns, maxfloat, max_pcs, 
-               stats, prefix, bgzip):
+               sqrt_transform, exp_transform, square_transform, boxcox_transform,
+               fill_missing, skip_columns, maxfloat, max_pcs, stats, prefix, bgzip):
     """
     Eigendecomposition of annotations
     """
 
     mutrate.decompose_bins(bins, outfile, components, min_variance, log_transform, 
-                           sqrt_transform, fill_missing, skip_columns, maxfloat, 
+                           sqrt_transform, exp_transform, square_transform, 
+                           boxcox_transform, fill_missing, skip_columns, maxfloat, 
                            max_pcs, stats, prefix, bgzip)

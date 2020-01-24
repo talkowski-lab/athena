@@ -80,26 +80,62 @@ def vcfstats(vcf, quantiles):
 @click.command(name='make-bins')
 @click.argument('genome', type=click.Path(exists=True))
 @click.argument('binsize', type=int)
-@click.argument('outfile')
+@click.argument('outfile_all')
 @click.option('-s', '--step', 'stepsize', default=None, 
               help='Step size of bins. [default: binsize]')
-@click.option('-x', '--blacklist', default=None, multiple=True,
-              help='BED file of regions to exclude, based on bin overlap. ' + 
-              'This may be specified multiple times. [default: None]')
-@click.option('--buffer', type=int, default=0,
+@click.option('-x', '--blacklist-all', default=None, multiple=True,
+              help='BED file of regions to exclude for all bins, based on bin ' +
+              'overlap. This may be specified multiple times. [default: None]')
+@click.option('--blacklist-training', 'blacklist_train', default=None, multiple=True,
+              help='BED file of regions to exclude for training bins, based on ' +
+              'bin overlap. This may be specified multiple times. [default: None]')
+@click.option('--buffer', 'bl_buffer', type=int, default=0,
               help='Pad blacklist intervals prior to intersection. If multiple ' + 
               'blacklists are specified, elements from each blacklist will be ' + 
               'padded separately. [default: None]')
 @click.option('--exclude-chroms', 'xchroms', default=None, 
               help='Chromosomes to exclude (comma-separated) ' + 
               '[default: exclude no chromosomes]')
+@click.option('--training-bins-out', 'outfile_train', default=None, 
+              help='Output BED file of bins for mutation rate training ' + 
+              '[default: do not output training bins]')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output with bgzip')
-def makebins(genome, binsize, outfile, stepsize, blacklist, buffer, xchroms, bgzip):
+def makebins(genome, binsize, outfile_all, outfile_train, stepsize, 
+             blacklist_all, blacklist_train, bl_buffer, xchroms, bgzip):
     """
     Create sequential bins
     """
-    utils.make_bins(genome, binsize, outfile, stepsize, blacklist, buffer, xchroms, bgzip)
+    utils.make_bins(genome, binsize, outfile_all, outfile_train, stepsize, 
+                    blacklist_all, blacklist_train, bl_buffer, xchroms, bgzip)
+
+
+# Plot feature distributions
+@click.command(name='feature-hists')
+@click.argument('BED', type=click.Path(exists=True))
+@click.argument('png_prefix')
+@click.option('--ignore-columns', 'skip_cols', type=int, default=3, 
+              help='Skip the first N columns for plotting')
+@click.option('--log-transform', multiple=True, help='List of column names to ' +
+              'be log-transformed prior to plotting. Note that the exact ' +
+              'transformation is log10(x+max(x/1000)).')
+@click.option('--sqrt-transform', multiple=True, help='List of column names to ' +
+              'be square root-transformed prior to plotting.')
+@click.option('--exp-transform', multiple=True, help='List of column names to ' +
+              'be exponential-transformed prior to plotting. Note that the ' +
+              'exact transformation is e^(x+max(x/1000)).')
+@click.option('--square-transform', multiple=True, help='List of column names to ' +
+              'be square-transformed prior to plotting.')
+@click.option('--boxcox-transform', multiple=True, help='List of column names to ' +
+              'be Box-Cox power-transformed prior to decomposition. Note that ' + 
+              'the exact transformation is boxcox(x+max(x/1000))')
+def featurehists(bed, png_prefix, skip_cols, log_transform, sqrt_transform,
+                 exp_transform, square_transform, boxcox_transform):
+  """
+  Plot bin annotation distributions
+  """
+  utils.feature_hists(bed, png_prefix, skip_cols, log_transform, sqrt_transform,
+                      exp_transform, square_transform, boxcox_transform)
 
 
 # Pair bins

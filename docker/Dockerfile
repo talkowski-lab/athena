@@ -22,6 +22,7 @@ ENV CONDA_DEFAULT_ENV olympus
 RUN echo "source activate olympus" >> ~/.bashrc
 ENV PATH /opt/conda/envs/olympus/bin:$PATH
 RUN conda install -n olympus -y -c bioconda numpy scipy pandas scikit-learn
+RUN conda install -n olympus -y -c bioconda matplotlib
 RUN conda install -n olympus -y -c bioconda samtools=1.9 pysam=0.15.3
 RUN conda install -n olympus -y -c bioconda pybedtools bedtools=2.27.0
 RUN conda install -n olympus -y -c bioconda bzip2
@@ -38,10 +39,13 @@ RUN echo "[client]\nmax_allowed_packet = 2G" >> /etc/my.cnf
 # Clone & install Athena
 RUN git clone https://c9f6da1fb0dd9d5379c313700a1083f9633be849@github.com/talkowski-lab/athena /opt/athena \
     && cd /opt/athena \
-    && git checkout 1a67bbffa8dd48b76baaca1c5afa96b400019838 \
+    && git checkout fc7cb0d0f806a78959522887694edf4cc2ed8af6 \
     && cd -
 RUN cd /opt/athena \
     && pip install -e .
+
+# Symlink Athena core reference data to home directory (for GitHub tutorial)
+RUN ln -s /opt/athena/data /data
 
 # Developer utilities: add bash aliases, etc (for convenience)
 RUN echo 'alias l="ls -ltrha"' >> ~/.bashrc \

@@ -75,8 +75,8 @@ Athena has numerous subcommands. Specify `--help` with any subcommand to see a l
 
 # The Athena workflow
 
-### Step 1
-**Filter SVs for mutation rate training**  
+### Step 1: Filter SVs for mutation rate training  
+
 First, SVs must be filtered to an appropriate subset to train a mutation rate model.  
 
 This is accomplished with `athena vcf-filter`, which offers many options to filter an input VCF. These options are enumerated in the `--help` text.  
@@ -113,8 +113,8 @@ See `data/` for a description of the file provided to `--blacklist`.
 
 --- 
 
-### Step 2 (Optional)
-**Calculate SV size & spacing distributions**
+### Step 2 (Optional): Calculate SV size & spacing distributions  
+
 Selecting an appropriate resolution for the mutation rate model is important, as it determines the accuracy of your results and the file sizes of the model.  
 
 To aid in this process, you can compute SV size & spacing distributions with `athena vcf-stats`.  
@@ -159,26 +159,31 @@ Based on this logic along with some approximate rounding, we can decide on the t
 
 --- 
 
-### Step 3
-**Create 1D training bins**  
+### Step 3: Create 1D bins genome-wide  
+
 The next step is to segment the genome into sequential, uniform bins.  
 
-These bins will only be used for training the mutation rate model. Once trained, you can extend the mutation rate model beyond this subset of training bins.  
+Using the bin size determined in [the example from step 2](https://github.com/talkowski-lab/athena#step-2) (above), we can generate sequential 5kb bins for all autosomes using `athena make-bins`.  
 
-Following [the example from step 2](https://github.com/talkowski-lab/athena#step-2) (above), we can generate 5kb bins for all autosomes using `athena make-bins`.  
+By default, sequential bins will be created from telomere to telomere for every chromosome. However, we can introduce any number of `-x`/`--blacklist-all` BED files to exclude bins overlapping the blacklist(s).  In this example, we will exclude bins overlapping unalignable (_i.e._, N-masked) regions.  
 
-We can also introduce any number of `--blacklist` BED files, which will exclude bins overlapping the blacklist(s) from being included in model training. We can also apply a buffer around the elements in the blacklists. For this example, we will exclude all bins within ±5kb of the intervals used for SV blacklisting ([see step 1](https://github.com/talkowski-lab/athena#step-1), above) as well as all bins overlapping any unalignable (i.e., N-masked) regions of the reference genome.  
+We can simultaneously define a smaller subset of bins for training the mutation rate model. Once trained, you can extend the mutation rate model beyond these training bins. 
 
-We can create these bins as follows:
+To generate a subset of training bins, we can pass any number of `--training-blacklist` BED files, which will apply further blacklisting to the bins generated above. In this example, we will exclude training bins overlapping the intervals used for SV blacklisting ([see step 1](https://github.com/talkowski-lab/athena#step-1), above).  
+
+Finally, we have the option to apply a buffer around the elements in the blacklists. For this example, we will conservatively exclude all bins within ±5kb of any interval from the blacklists.  
+
+We can create these bins as follows:  
 ```
 $ athena make-bins -z \
-    -x data/athena.SV_selection_blacklist.v1.GRCh37.bed.gz \
-    -x data/GRCh37.Nmask.bed.gz \
+    --blacklist-all data/GRCh37.Nmask.bed.gz \
+    --blacklist-training data/athena.SV_selection_blacklist.v1.GRCh37.bed.gz \
     --buffer 5000 \
     --exclude-chroms X,Y,M \
+    --training-bins-out GRCh37.autosomes.5kb_bins.training.bed.gz \
     data/GRCh37.genome \
     5000 \
-    athena_training_bins.bed.gz
+    GRCh37.autosomes.5kb_bins.all.bed.gz
 ```
 
 Where:
@@ -187,17 +192,17 @@ Where:
 
 --- 
 
-### Step 4
-**Annotate 1D training bins**  
+### Step 4: Annotate 1D training bins  
+
 Once the genome has been segmented into sequential, uniform bins (see the [example in step 3](https://github.com/talkowski-lab/athena#step-3)), we next must annotate these bins with any features to be considered in mutation rate modeling.  
 
 Athena has a flexible interface to apply multiple annotations directly from various sources, invoked as `athena annotate-bins`.  
 
-Currently, supported data sources are as follows:  
+Supported data sources are listed in below:  
 
 | Track format | Source | Athena flag | Available actions |  
 | :--- | :--- | :--- | :--- |   
-| Any file compatible with BEDTools [`coverage`](https://bedtools.readthedocs.io/en/latest/content/tools/coverage.html) or [`intersect`](https://bedtools.readthedocs.io/en/latest/content/tools/intersect.html) (e.g., BED, VCF, GFF, etc.) | Local | `--track` | `--count`, `--count-unique`, `--coverage`, `--any-overlap` |  
+| Any file compatible with BEDTools [`coverage`](https://bedtools.readthedocs.io/en/latest/content/tools/coverage.html) or [`intersect`](https://bedtools.readthedocs.io/en/latest/content/tools/intersect.html) (_e.g._, BED, VCF, GFF, etc.) | Local | `--track` | `--count`, `--count-unique`, `--coverage`, `--any-overlap` |  
 | [BigWig](https://genome.ucsc.edu/goldenPath/help/bigWig.html) | Local *or remote<sup>1</sup>* | `--track` | `--map-mean`, `--map-sum`, `--map-min`, `--map-max` |  
 | [UCSC Genome Browser Tables](https://genome.ucsc.edu/cgi-bin/hgTables)<sup>2</sup> | Hosted by UCSC | `--ucsc-track` | `--count`, `--count-unique`, `--coverage`, `--any-overlap` |  
 | [UCSC-Hosted BigWig Tracks](https://genome.ucsc.edu/cgi-bin/hgTables)<sup>2</sup> | Hosted by UCSC | `--ucsc-track` | `--map-mean`, `--map-sum`, `--map-min`, `--map-max` |  
@@ -206,7 +211,7 @@ Currently, supported data sources are as follows:
 
 #### Notes:
  1. If specifying a remote BigWig file, pass the full URL of the remote-hosted file to `--track`.  
- 2. If any UCSC tracks are requested, the UCSC reference build must also be specified with `--ucsc-ref`. Athena will automatically handle necessary conversions between GRC & UCSC contig nomenclature (e.g., `chr1` vs `1`).  
+ 2. If any UCSC tracks are requested, the UCSC reference build must also be specified with `--ucsc-ref`. Athena will automatically handle necessary conversions between GRC & UCSC contig nomenclature (_e.g._, `chr1` vs `1`).  
  3. Specifying `--fasta` adds a `pct_gc` annotation, which is the GC content of each bin.  
 
 The exact annotations added at this stage are for the user to decide.  
@@ -225,6 +230,7 @@ We would add these six annotations to the bins from step 3 as follows:
 # (note: BEDTools currently does not support compressed reference fasta files)
 $ wget ftp://ftp.ensembl.org/pub/grch37/current/fasta/homo_sapiens/dna/Homo_sapiens.GRCh37.dna.primary_assembly.fa.gz
 $ gunzip Homo_sapiens.GRCh37.dna.primary_assembly.fa.gz
+$ samtools faidx Homo_sapiens.GRCh37.dna.primary_assembly.fa
 
 # Second, run athena annotate-bins
 $ athena annotate-bins -z \
@@ -232,27 +238,28 @@ $ athena annotate-bins -z \
     -t https://www.encodeproject.org/files/ENCFF250KXQ/@@download/ENCFF250KXQ.bigWig -a map-mean -n ovary_sense_strand_expression \
     -t https://www.encodeproject.org/files/ENCFF416KSV/@@download/ENCFF416KSV.bigWig -a map-max -n ovary_peak_dnase_hypersensitivity \
     -u genomicSuperDups -a coverage -n segdup_coverage \
-    -u rmsk -a count -n repeatmasker_count \
     -u wgEncodeCrgMapabilityAlign100mer -a map-mean -n mapability_100mers \
     --ucsc-ref hg19 \
     --fasta Homo_sapiens.GRCh37.dna.primary_assembly.fa \
-    athena_training_bins.bed.gz \
-    athena_training_bins.annotated.bed.gz
+    GRCh37.autosomes.5kb_bins.all.bed.gz \
+    GRCh37.autosomes.5kb_bins.all.annotated.bed.gz
 ```
 
-Don't worry about correlations between various annotation tracks -- this correlation structure will be handled in [step 5, below](https://github.com/talkowski-lab/athena#step-5).  
+Note that we need to annotate _all_ bins (rather than just the training bins) in order to expand the trained mutation rate model genome-wide.  
+
+Don't worry about correlations between various annotation tracks, either. This correlation structure will be handled in [step 5, below](https://github.com/talkowski-lab/athena#step-5).  
 
 #### Customizing UCSC Genome Browser track queries:  
 Athena supports a limited range of conditional filtering and column manipulation for UCSC tracks.  
 
 By default, Athena will extract the minimal BED coordinate information for each track (`chrom`, `start`, `end`).  
 
-Additional columns or column filters can be specified by adding a `:` after the track name (`-u`/`--ucsc-track`).  
+Additional columns or column filters can be specified by adding `:` after the track name (`-u`/`--ucsc-track`).  
 
 The syntax for these options follows a set of conventions:
   * Track name must be specified only once, and directly after `-u`/`--ucsc-track`  
-  * All desired columns must be listed as a column-delimited list after the track name, separated by `:`  
-  * Column filtering must be specified directly after the desired column using any of a limited set of operators (`=`, `!=`, `<`, `>`, `<=`, `>=`)  
+  * *All* desired columns must be listed as a column-delimited list after the track name, separated by `:`  
+  * Column filtering must be specified directly after the desired column using one of a limited set of operators. Valid operators include `=`, `!=`, `<`, `>`, `<=`, and `>=`.  
 
 If fewer than three columns are specified, `chrom`, `chromStart`, and `chromEnd` will always be appended.  
 
@@ -261,7 +268,7 @@ If no filtering is specified for a given column, no filters will be applied.
 The exact syntax will vary based on columns available for each track, which can be checked using the [UCSC Table Browser](http://genome.ucsc.edu/cgi-bin/hgTables).  
 
 **Warning #1**  
-Be careful to wrap modified track names in quotes, because some operators (especially `>`) can be interpreted as bash flow control characters.
+Be careful to wrap modified UCSC track names in quotes, because some operators (especially `>`) can be interpreted as shell flow control characters.
 
 **Example Use Case #1**  
 We could restrict the segmental duplications annotation from the example above to only those with high sequence identity as follows:
@@ -304,38 +311,91 @@ $ athena annotate-bins -z \
 
 --- 
 
-### Step 5  
-**Collapse redundant 1D annotations**  
-Many genomic anntations are redudant (e.g., microsatellites and low sequence uniqueness, or GC content and protein-coding exons). 
+### Step 5: Collapse correlated 1D annotations  
 
-To control for the underlying correlation structure of the annotations included in [step 4 (above)](https://github.com/talkowski-lab/athena#step-4), the next step in the Athena workflow is to perform Eigenvector decomposition of the binwise annotations.  
+Many genomic anntations are correlated (_e.g._, microsatellites and low sequence uniqueness, or GC content and protein-coding exons). 
 
-This can be accomplished with `athena eigen-bins`. 
+To control for the underlying correlation structure of the annotations included in [step 4 (above)](https://github.com/talkowski-lab/athena#step-4), the next step in the Athena workflow is to perform Eigendecomposition of the binwise annotations.  
+
+This can be accomplished with `athena eigen-bins`.  
 
 For example, we could decompose the annotations from [the example in step 4](https://github.com/talkowski-lab/athena#step-4) into the top three Eigenfeatures as follows:  
 ```
-athena eigen-bins \
-  --eigenfeatures 3 \
-  --stats eigenfeature_stats.txt \
-  -z \
-  athena_training_bins.annotated.bed.gz \
-  athena_training_bins.annotated.decomped.bed.gz
+$ athena eigen-bins \
+    --eigenfeatures 3 \
+    --stats eigenfeature_stats.txt \
+    -z \
+    GRCh37.autosomes.5kb_bins.all.annotated.bed.gz \
+    GRCh37.autosomes.5kb_bins.all.annotated.decomped.bed.gz
 ```  
 
 If you include the `--stats` option, Athena will also generate a log file with the summary of all Eigenfeatures, including total variance explained by each, and the Spearman correlation of raw annotation tracks significantly correlated with each Eigenfeature.  
 
 This log file can be useful for determining _what_ each Eigenfeature represents (roughly speaking).  
 
+#### Transforming annotations prior to Eigendecomposition:  
+
+An important guideline is that `athena eigen-bins` assumes all annotations approximately follow a Gaussian (_i.e._, normal) distribution.  
+
+Therefore, it is recommended to perform a cursory exploration of each annotation prior to annotation Eigendecomposition. Athena provides a simple utility for exploring each annotation via `athena feature-hists`.
+
+For example, we could visualize the distributions of the six annotations applied in [the example in step 4](https://github.com/talkowski-lab/athena#step-4) as follows:  
+```
+$ athena feature-hists \
+    GRCh37.autosomes.5kb_bins.all.annotated.bed.gz \
+    ./athena_feature_hist
+```  
+This will generate a small `.png` file with a histogram of each feature for all bins.  
+
+Upon manually reviewing each histogram, we can observe a few non-normal annotations:  
+ * `mapability_100mers` is left-skewed; and
+ * `ovary_peak_dnase_hypersensitivity` and `ovary_sense_strand_expression` are right-skewed.
+
+Our Eigendecomposition from the example above will more accurately capture the variance among bins if we can transform these annotations to appear approximately Gaussian prior to Eigendecomposition.  
+
+Fortunately, Athena can perform a few simple transformations of specified annotation(s), as summarized below:  
+
+| Transformation | Athena flag | Details |  
+| :--- | :--- | :--- |  :--- |  
+| log<sub>10</sub> | `--log-transform` | Transforms values as `log10(x + E)`, where `E = max(x) / 1000` |  
+| Square root | `--sqrt-transform` | Transforms values as square roots |  
+| Exponential | `--exp-transform` | Transforms values as `e ^ x` |  
+| Square | `--square-transform` | Transforms values as `x ^ 2` |  
+| Box-Cox | `--boxcox-transform` | Box-Cox power transformation |  
+
+Note that both `athena eigen-bins` and `athena feature-hists` accept these transformation options, allowing you to re-plot features after transformation to check the distributions of your transformed data as it will be used during Eigendecomposition.  
+
+#### Eigendecomposition with transformed annotations  
+
+Putting everything together, the final `athena eigen-bins` call with necessary annotation transformations would be as follows:  
+```
+$ athena eigen-bins \
+    --eigenfeatures 3 \
+    --log-transform ovary_peak_dnase_hypersensitivity \
+    --log-transform ovary_sense_strand_expression \
+    --boxcox-transform mapability_100mers \
+    --stats eigenfeature_stats.txt \
+    -z \
+    GRCh37.autosomes.5kb_bins.all.annotated.bed.gz \
+    GRCh37.autosomes.5kb_bins.all.annotated.decomped.bed.gz
+```
+
 ---  
 
-### A note on design
+### A note on design  
+
 This package was designed with canonical CNVs from [the gnomAD-SV callset](https://gnomad.broadinstitute.org/downloads) in mind.  
 
 To that end, it assumes input data follows gnomAD-SV formatting standards. This may cause issues for alternative styles of SV representation, for SV types other than canonical CNVs, or different metadata labels.  
 
 If using non-gnomAD data with Athena, please compare your VCF formatting standards, and the `INFO` field in particular.  
 
-You can read more about the gnomAD-SV dataset [in the corresponding preprint](https://broad.io/gnomad_sv).
+You can read more about the gnomAD-SV dataset [in the corresponding preprint](https://broad.io/gnomad_sv).  
 
-### About the name
+### A note on parallellization  
+
+Some steps (especially [bin annotation](https://github.com/talkowski-lab/athena#step-4)) can be computationally demanding. In practice, it is recommended to parallelize by chromosome where possible.  
+
+### About the name  
+
 This package is named after [Athena](https://en.wikipedia.org/wiki/Athena), the Greek goddess of wisdom, strategy, tactics, and mathematics. She was selected as the namesake for this package given that it relies on understanding the features that influence structural variation mutation rates (_wisdom_), incorporating those features into a statistical model (_mathematics_), and using these models to infer which components of the genome are vulnerable to changes in copy number (a kind of genomic _tactics_/_strategy_).

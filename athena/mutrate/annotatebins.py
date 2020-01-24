@@ -102,7 +102,7 @@ def add_bigwig_track(bins, track, action):
 
     values = [_bw_lookup(f, bigwig, operation) for f in bins]
 
-    df = pd.read_csv(bins.fn, sep='\t', header=None)
+    df = pd.read_csv(bins.fn, sep='\t', header=None, comment='#')
     df['newvals'] = values
     bins = pybedtools.BedTool.from_dataframe(df)
 

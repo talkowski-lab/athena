@@ -12,65 +12,12 @@ Perform Eigendecomposition on 1D bin annotations
 import pandas as pd
 import numpy as np
 from os import path
-import warnings
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
-from sklearn.exceptions import DataConversionWarning
 from scipy.stats import spearmanr
 import pybedtools
 from athena.utils.misc import bgzip as bgz
-
-
-# Handle missing annotation values
-def _clean_missing_vals(df, fill_missing):
-    df = df.replace('.', np.nan)
-    df = df.apply(pd.to_numeric, errors='coerce')
-    if str(fill_missing).isdigit():
-        df = df.fillna(value=fill_missing)
-    elif fill_missing == 'mean':
-        df = df.fillna(df.mean())
-    elif fill_missing == 'median':
-        df = df.fillna(df.median())
-    else:
-        from sys import exit
-        err = 'ERROR: "{0}" not a recognized specification for --fill-missing'
-        exit(err.format(fill_missing))
-
-    return df
-
-
-# Perform log-transformation of a single feature
-def _log_trans(df, column):
-    
-    if column not in list(df.columns):
-        from sys import exit
-        err = 'ERROR: "{0}" is not a recognized feature name in input bins; ' + \
-              'log transformation failed'
-        exit(err.format(column))
-
-    df[[column]] = df[[column]].apply(pd.to_numeric, errors='coerce')
-
-    maxval = df[[column]].max().tolist()[0]
-
-    df[[column]] = np.log10(df[[column]] + maxval/100)
-
-    return df
-
-
-# Perform square root-transformation of a single feature
-def _sqrt_trans(df, column):
-    
-    if column not in list(df.columns):
-        from sys import exit
-        err = 'ERROR: "{0}" is not a recognized feature name in input bins; ' + \
-              'log transformation failed'
-        exit(err.format(column))
-
-    df[[column]] = df[[column]].apply(pd.to_numeric, errors='coerce')
-
-    df[[column]] = np.sqrt(df[[column]])
-
-    return df
+import athena.utils.dfutils as dfutils
 
 
 # Compute PCA & feature stats
@@ -126,30 +73,18 @@ def float_cleanup(df, maxfloat, start_idx):
 
 # Master function for Eigendecomposition of bin annotations
 def decompose_bins(bins, outfile, components=10, minvar=None, log_transform=None, 
-                   sqrt_transform=None, fill_missing=0, first_column=3, 
-                   maxfloat=5, max_pcs=100, pca_stats=None, 
-                   eigen_prefix='eigenfeature', bgzip=False):
+                   sqrt_transform=None, exp_transform=None, square_transform=None, 
+                   boxcox_transform=None, fill_missing=0, first_column=3, maxfloat=5, 
+                   max_pcs=100, pca_stats=None, eigen_prefix='eigenfeature', 
+                   bgzip=False):
 
-    # Disable data scaling warnings
-    warnings.filterwarnings(action='ignore', category=DataConversionWarning)
-
-    # Read bins & subset to columns with annotations
-    df_all = pd.read_csv(bins, sep='\t')
-    df_bins = df_all.iloc[:, :first_column]
-    df_annos = df_all.iloc[:, first_column:]
+    # Read bins, then sanitize and transform annotations
+    df_bins = pd.read_csv(bins, sep='\t', usecols=range(3))
+    df_annos = dfutils.load_feature_df(bins, first_column, log_transform,
+                                       sqrt_transform, exp_transform, 
+                                       square_transform,  boxcox_transform,
+                                       fill_missing)
     feature_names = df_annos.columns.tolist()
-
-    # Clean missing values
-    df_annos = _clean_missing_vals(df_annos, fill_missing)
-
-    # Transform any columns as optioned
-    if log_transform is not None:
-        for column in log_transform:
-            df_annos = _log_trans(df_annos, column)
-
-    if sqrt_transform is not None:
-        for column in sqrt_transform:
-            df_annos = _sqrt_trans(df_annos, column)
 
     # Scale all columns
     df_annos = StandardScaler().fit_transform(df_annos)
