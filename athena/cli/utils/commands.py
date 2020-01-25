@@ -26,7 +26,7 @@ from athena import utils
 @click.option('--svtypes', default=None, 
               help='SV classes to include (comma-separated) [default: all SVs]')
 @click.option('-x', '--blacklist', default=None,
-              help='BED file of regions to exclude, based on SV overlap [default: None]')
+              help='BED file of regions to exclude, based on SV overlap')
 @click.option('--minAF', 'minAF', type=float, default=0, 
               help='Minimum allowed allele frequency [default: 0]')
 @click.option('--maxAF', 'maxAF', type=float, default=1.0, 
@@ -85,14 +85,14 @@ def vcfstats(vcf, quantiles):
               help='Step size of bins. [default: binsize]')
 @click.option('-x', '--blacklist-all', default=None, multiple=True,
               help='BED file of regions to exclude for all bins, based on bin ' +
-              'overlap. This may be specified multiple times. [default: None]')
+              'overlap. This may be specified multiple times.')
 @click.option('--blacklist-training', 'blacklist_train', default=None, multiple=True,
               help='BED file of regions to exclude for training bins, based on ' +
-              'bin overlap. This may be specified multiple times. [default: None]')
+              'bin overlap. This may be specified multiple times.')
 @click.option('--buffer', 'bl_buffer', type=int, default=0,
               help='Pad blacklist intervals prior to intersection. If multiple ' + 
               'blacklists are specified, elements from each blacklist will be ' + 
-              'padded separately. [default: None]')
+              'padded separately.')
 @click.option('--exclude-chroms', 'xchroms', default=None, 
               help='Chromosomes to exclude (comma-separated) ' + 
               '[default: exclude no chromosomes]')
@@ -122,13 +122,12 @@ def makebins(genome, binsize, outfile_all, outfile_train, stepsize,
 @click.option('--sqrt-transform', multiple=True, help='List of column names to ' +
               'be square root-transformed prior to plotting.')
 @click.option('--exp-transform', multiple=True, help='List of column names to ' +
-              'be exponential-transformed prior to plotting. Note that the ' +
-              'exact transformation is e^(x+max(x/1000)).')
+              'be exponential-transformed prior to plotting.')
 @click.option('--square-transform', multiple=True, help='List of column names to ' +
               'be square-transformed prior to plotting.')
 @click.option('--boxcox-transform', multiple=True, help='List of column names to ' +
               'be Box-Cox power-transformed prior to decomposition. Note that ' + 
-              'the exact transformation is boxcox(x+max(x/1000))')
+              'the exact transformation is performed on x+max(x/1000).')
 def featurehists(bed, png_prefix, skip_cols, log_transform, sqrt_transform,
                  exp_transform, square_transform, boxcox_transform):
   """
@@ -136,15 +135,6 @@ def featurehists(bed, png_prefix, skip_cols, log_transform, sqrt_transform,
   """
   utils.feature_hists(bed, png_prefix, skip_cols, log_transform, sqrt_transform,
                       exp_transform, square_transform, boxcox_transform)
-
-
-# Pair bins
-@click.command(name='pair-bins')
-def pair():
-    """
-    Pair bins
-    """
-    click.echo('Pair bins (in dev.)')
 
 
 # Intersect SVs and bins
@@ -156,7 +146,12 @@ def pair():
               help='File format of SV input. Required.')
 @click.option('--comparison', type=click.Choice(['interval', 'breakpoint']),
               help='Specification of SV-to-bin comparison. Required.')
-def countsv(bins, sv, outfile, sv_format, comparison):
+@click.option('--min-bin-coverage', 'min_cov', type=float, default=0.001,
+              help='Minimum fraction of bin to be covered by SV before being ' + 
+              'counted. Only used with --comparison breakpoint.')
+@click.option('-z', '--bgzip', is_flag=True, default=False, 
+              help='Compress output with bgzip')
+def countsv(bins, sv, outfile, sv_format, comparison, min_cov, bgzip):
     """
     Intersect SV and bins
     """
@@ -181,4 +176,45 @@ def countsv(bins, sv, outfile, sv_format, comparison):
               '"interval" or "breakpoint".'
       exit(err.format(comparison))
 
-    utils.count_sv(bins, sv, outfile, sv_format, comparison)
+    utils.count_sv(bins, sv, outfile, sv_format, comparison, min_cov, bgzip)
+
+
+# Pair bins
+@click.command(name='pair-bins')
+@click.argument('bins', type=click.Path(exists=True))
+@click.argument('outfile_all')
+@click.option('--max-dist-all', type=int, default=1000000,
+              help='Maximum distance to consider during pairing.')
+@click.option('--max-dist-training', 'max_dist_train', type=int, default=1000000,
+              help='Maximum distance to consider during pairing for training ' +
+              'bins only.')
+@click.option('-x', '--blacklist-all', default=None, multiple=True,
+              help='BED file of regions to exclude for all bin pairs, based on ' +
+              'pair span overlap. This may be specified multiple times.')
+@click.option('--blacklist-training', 'blacklist_train', default=None, multiple=True,
+              help='BED file of regions to exclude for training bin pairs, based ' +
+              'on pair span overlap. This may be specified multiple times. ')
+@click.option('--buffer', 'bl_buffer', type=int, default=0,
+              help='Pad blacklist intervals prior to intersection. If multiple ' + 
+              'blacklists are specified, elements from each blacklist will be ' + 
+              'padded separately.')
+@click.option('--training-pairs-out', 'outfile_train', default=None, 
+              help='Output BEDPE file of bin pairs for mutation rate training ' + 
+              '[default: do not output training bin pairs]')
+@click.option('-z', '--bgzip', is_flag=True, default=False, 
+              help='Compress output with bgzip')
+def pairbins(bins, outfile_all, outfile_train, max_dist_all, max_dist_train, blacklist_all,
+             blacklist_train, bl_buffer, bgzip):
+  """
+  Create pairs of bins
+  """
+  utils.pair_bins(bins, outfile_all, outfile_train, max_dist_all, max_dist_train, blacklist_all,
+                  blacklist_train, bl_buffer, bgzip)
+
+
+
+def pair():
+    """
+    Pair bins
+    """
+    click.echo('Pair bins (in dev.)')

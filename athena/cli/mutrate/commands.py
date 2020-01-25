@@ -162,13 +162,12 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
 @click.option('--sqrt-transform', multiple=True, help='List of column names to ' +
               'be square root-transformed prior to decomposition.')
 @click.option('--exp-transform', multiple=True, help='List of column names to ' +
-              'be exponential-transformed prior to decomposition. Note that the ' +
-              'exact transformation is e^(x+max(x/1000)).')
+              'be exponential-transformed prior to decomposition.')
 @click.option('--square-transform', multiple=True, help='List of column names to ' +
               'be square-transformed prior to decomposition.')
 @click.option('--boxcox-transform', multiple=True, help='List of column names to ' +
               'be Box-Cox power-transformed prior to decomposition. Note that ' + 
-              'the exact transformation is boxcox(x+max(x/1000))')
+              'the exact transformation is applied to x+max(x/1000).')
 @click.option('--fill-missing', type=str, default='0',
               help='Behavior for filling missing values. Can specify numeric ' + 
               'value to fill all missing cells, or "mean"/"median" to ' +

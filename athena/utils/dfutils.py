@@ -88,9 +88,7 @@ def _exp_trans(df, column):
 
     df[[column]] = df[[column]].apply(pd.to_numeric, errors='coerce')
 
-    maxval = np.nanmax(df[[column]])
-
-    df[[column]] = np.exp(df[[column]] + maxval/1000)
+    df[[column]] = np.exp(df[[column]])
 
     return df
 

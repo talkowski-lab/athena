@@ -14,6 +14,25 @@ from os import path
 from athena.utils.misc import bgzip as bgz
 
 
+def _apply_blacklist(bins, blacklists, bl_buffer):
+    if isinstance(blacklists, tuple):
+        for bl in blacklists:
+            xbt = pybedtools.BedTool(bl)
+            xbt = xbt.each(_buffer_blacklist, bl_buffer=bl_buffer).merge()
+            bins = bins.intersect(xbt, v=True)
+    else:
+        xbt = pybedtools.BedTool(blacklists)
+        xbt = xbt.each(_buffer_blacklist, bl_buffer=bl_buffer).merge()
+        bins = bins.intersect(xbt, v=True)
+    return bins
+
+
+def _buffer_blacklist(interval, bl_buffer):
+    interval.start = max([0, interval.start - bl_buffer])
+    interval.stop = interval.stop + bl_buffer
+    return interval
+
+
 def make_bins(genome, binsize, outfile_all, outfile_train, stepsize, 
               blacklist_all, blacklist_train, bl_buffer, xchroms, bgzip):
 
@@ -59,22 +78,3 @@ def make_bins(genome, binsize, outfile_all, outfile_train, stepsize,
         # Bgzip bins, if optioned
         if bgzip:
             bgz(outfile_train)
-
-
-def _apply_blacklist(bins, blacklists, bl_buffer):
-    if isinstance(blacklists, tuple):
-        for bl in blacklists:
-            xbt = pybedtools.BedTool(bl)
-            xbt = xbt.each(_buffer_blacklist, bl_buffer=bl_buffer).merge()
-            bins = bins.intersect(xbt, v=True)
-    else:
-        xbt = pybedtools.BedTool(blacklists)
-        xbt = xbt.each(_buffer_blacklist, bl_buffer=bl_buffer).merge()
-        bins = bins.intersect(xbt, v=True)
-    return bins
-
-
-def _buffer_blacklist(interval, bl_buffer):
-    interval.start = max([0, interval.start - bl_buffer])
-    interval.stop = interval.stop + bl_buffer
-    return interval

@@ -15,11 +15,11 @@ Distributed under terms of the [MIT License](/LICENSE) (see `LICENSE`).
 
 #### The Athena workflow
 _Mutation rate modeling_ 
-  1. [Filter SVs for mutation rate training](https://github.com/talkowski-lab/athena#step-1)  
-  2. [Calculate SV size & spacing distributions](https://github.com/talkowski-lab/athena#step-2) (_optional_)   
-  3. [Create 1D training bins](https://github.com/talkowski-lab/athena#step-3)   
-  4. [Annotate 1D training bins](https://github.com/talkowski-lab/athena#step-4)  
-  5. [Collapse redundant 1D annotations](https://github.com/talkowski-lab/athena#step-5)  
+  1. [Filter SVs for mutation rate training](https://github.com/talkowski-lab/athena#step-1-filter-svs-for-mutation-rate-training)  
+  2. [Calculate SV size & spacing distributions](https://github.com/talkowski-lab/athena#step-2-optional-calculate-sv-size--spacing-distributions) (_optional_)   
+  3. [Create 1D training bins](https://github.com/talkowski-lab/athena#step-3-create-1d-bins-genome-wide)   
+  4. [Annotate 1D training bins](https://github.com/talkowski-lab/athena#step-4-annotate-1d-training-bins)  
+  5. [Collapse redundant 1D annotations](https://github.com/talkowski-lab/athena#step-5-collapse-correlated-1d-annotations)  
 
 _Dosage sensitivity modeling_  
 
@@ -63,6 +63,7 @@ Commands:
   annotate-bins  Annotate bins
   count-sv       Intersect SV and bins
   eigen-bins     Eigendecomposition of annotations
+  feature-hists  Plot bin annotation distributions
   make-bins      Create sequential bins
   query          Mutation rate lookup
   vcf-filter     Filter an input VCF
@@ -95,7 +96,7 @@ $ wget https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2.1_s
 
 # Second, filter the gnomad-SV VCF with Athena
 $ athena vcf-filter -z \
-    --exclude-chroms X,Y \
+    --exclude-chroms X,Y,M \
     --svtypes DEL \
     --blacklist data/athena.SV_selection_blacklist.v1.GRCh37.bed.gz \
     --maxAF 0.001 \
@@ -119,7 +120,7 @@ Selecting an appropriate resolution for the mutation rate model is important, as
 
 To aid in this process, you can compute SV size & spacing distributions with `athena vcf-stats`.  
 
-For example, you can invoke `athena vcf-stats` on the training set [generated above](https://github.com/talkowski-lab/athena#step-1) as follows:
+For example, you can invoke `athena vcf-stats` on the training set [generated above](https://github.com/talkowski-lab/athena#step-1-filter-svs-for-mutation-rate-training) as follows:
 ```
 $ athena vcf-stats athena_training_deletions.vcf.gz
 ```
@@ -151,10 +152,13 @@ From the first distribution, `SV spacing`, we can observe that over half of all 
 
 And based on the second distribution, `SV size`, we can also see that 99% of all deletions in the training set are smaller than 47kb, which means that we probably do not need to extend the training of our 2D model beyond \~50kb to capture almost all of the informative 2D signal.  
 
-Based on this logic along with some approximate rounding, we can decide on the two key parameters used in the remaining steps of the mutation rate model:
+Likewise, we can see that 99.9% of deletions are smaller than 156kb, so we can safely restrict computing 2D mutation rates to a maximum distance of 160kb while only failing to model <0.1% of all deletions.
+
+Based on this logic along with some approximate rounding, we can decide on the three key parameters used in the remaining steps of the mutation rate model:
 ```
 1D bin size: 5kb
-2D maximum bin-pair distance: 50kb
+2D maximum bin-pair distance (training): 50kb
+2D maximum bin-pair distance (full model): 160kb
 ```
 
 --- 
@@ -163,13 +167,13 @@ Based on this logic along with some approximate rounding, we can decide on the t
 
 The next step is to segment the genome into sequential, uniform bins.  
 
-Using the bin size determined in [the example from step 2](https://github.com/talkowski-lab/athena#step-2) (above), we can generate sequential 5kb bins for all autosomes using `athena make-bins`.  
+Using the bin size determined in [the example from step 2](https://github.com/talkowski-lab/athena#step-2-optional-calculate-sv-size--spacing-distributions) (above), we can generate sequential 5kb bins for all autosomes using `athena make-bins`.  
 
 By default, sequential bins will be created from telomere to telomere for every chromosome. However, we can introduce any number of `-x`/`--blacklist-all` BED files to exclude bins overlapping the blacklist(s).  In this example, we will exclude bins overlapping unalignable (_i.e._, N-masked) regions.  
 
 We can simultaneously define a smaller subset of bins for training the mutation rate model. Once trained, you can extend the mutation rate model beyond these training bins. 
 
-To generate a subset of training bins, we can pass any number of `--training-blacklist` BED files, which will apply further blacklisting to the bins generated above. In this example, we will exclude training bins overlapping the intervals used for SV blacklisting ([see step 1](https://github.com/talkowski-lab/athena#step-1), above).  
+To generate a subset of training bins, we can pass any number of `--training-blacklist` BED files, which will apply further blacklisting to the bins generated above. In this example, we will exclude training bins overlapping the intervals used for SV blacklisting ([see step 1](https://github.com/talkowski-lab/athena#step-1-filter-svs-for-mutation-rate-training), above).  
 
 Finally, we have the option to apply a buffer around the elements in the blacklists. For this example, we will conservatively exclude all bins within ±5kb of any interval from the blacklists.  
 
@@ -194,7 +198,7 @@ Where:
 
 ### Step 4: Annotate 1D training bins  
 
-Once the genome has been segmented into sequential, uniform bins (see the [example in step 3](https://github.com/talkowski-lab/athena#step-3)), we next must annotate these bins with any features to be considered in mutation rate modeling.  
+Once the genome has been segmented into sequential, uniform bins (see the [example in step 3](https://github.com/talkowski-lab/athena#step-3-create-1d-bins-genome-wide)), we next must annotate these bins with any features to be considered in mutation rate modeling.  
 
 Athena has a flexible interface to apply multiple annotations directly from various sources, invoked as `athena annotate-bins`.  
 
@@ -216,7 +220,7 @@ Supported data sources are listed in below:
 
 The exact annotations added at this stage are for the user to decide.  
 
-For example, we could annotate the bins from [step 3 (above)](https://github.com/talkowski-lab/athena#step-3) with the following six tracks:
+For example, we could annotate the bins from [step 3 (above)](https://github.com/talkowski-lab/athena#step-3-create-1d-bins-genome-wide) with the following six tracks:
  1. Counts per bin vs. a custom local annotation file (`my_local_annotation.bed`)
  2. Average ovary expression level per bin from ENCODE (accession [ENCFF250KXQ](https://www.encodeproject.org/experiments/ENCFF250KXQ/))
  3. Maximum ovary chromatin accessibility score per bin from ENCODE (accession [ENCFF416KSV](https://www.encodeproject.org/experiments/ENCFF416KSV/))  
@@ -247,7 +251,7 @@ $ athena annotate-bins -z \
 
 Note that we need to annotate _all_ bins (rather than just the training bins) in order to expand the trained mutation rate model genome-wide.  
 
-Don't worry about correlations between various annotation tracks, either. This correlation structure will be handled in [step 5, below](https://github.com/talkowski-lab/athena#step-5).  
+Don't worry about correlations between various annotation tracks, either. This correlation structure will be handled in [step 5, below](https://github.com/talkowski-lab/athena#step-5-collapse-correlated-1d-annotations).  
 
 #### Customizing UCSC Genome Browser track queries:  
 Athena supports a limited range of conditional filtering and column manipulation for UCSC tracks.  
@@ -315,11 +319,11 @@ $ athena annotate-bins -z \
 
 Many genomic anntations are correlated (_e.g._, microsatellites and low sequence uniqueness, or GC content and protein-coding exons). 
 
-To control for the underlying correlation structure of the annotations included in [step 4 (above)](https://github.com/talkowski-lab/athena#step-4), the next step in the Athena workflow is to perform Eigendecomposition of the binwise annotations.  
+To control for the underlying correlation structure of the annotations included in [step 4 (above)](https://github.com/talkowski-lab/athena#step-4-annotate-1d-training-bins), the next step in the Athena workflow is to perform Eigendecomposition of the binwise annotations.  
 
 This can be accomplished with `athena eigen-bins`.  
 
-For example, we could decompose the annotations from [the example in step 4](https://github.com/talkowski-lab/athena#step-4) into the top three Eigenfeatures as follows:  
+For example, we could decompose the annotations from [the example in step 4](https://github.com/talkowski-lab/athena#step-4-annotate-1d-training-bins) into the top three Eigenfeatures as follows:  
 ```
 $ athena eigen-bins \
     --eigenfeatures 3 \
@@ -339,7 +343,7 @@ An important guideline is that `athena eigen-bins` assumes all annotations appro
 
 Therefore, it is recommended to perform a cursory exploration of each annotation prior to annotation Eigendecomposition. Athena provides a simple utility for exploring each annotation via `athena feature-hists`.
 
-For example, we could visualize the distributions of the six annotations applied in [the example in step 4](https://github.com/talkowski-lab/athena#step-4) as follows:  
+For example, we could visualize the distributions of the six annotations applied in [the example in step 4](https://github.com/talkowski-lab/athena#step-4-annotate-1d-training-bins) as follows:  
 ```
 $ athena feature-hists \
     GRCh37.autosomes.5kb_bins.all.annotated.bed.gz \
@@ -356,12 +360,12 @@ Our Eigendecomposition from the example above will more accurately capture the v
 Fortunately, Athena can perform a few simple transformations of specified annotation(s), as summarized below:  
 
 | Transformation | Athena flag | Details |  
-| :--- | :--- | :--- |  :--- |  
+| :--- | :--- | :--- |  
 | log<sub>10</sub> | `--log-transform` | Transforms values as `log10(x + E)`, where `E = max(x) / 1000` |  
 | Square root | `--sqrt-transform` | Transforms values as square roots |  
 | Exponential | `--exp-transform` | Transforms values as `e ^ x` |  
 | Square | `--square-transform` | Transforms values as `x ^ 2` |  
-| Box-Cox | `--boxcox-transform` | Box-Cox power transformation |  
+| Box-Cox | `--boxcox-transform` | Box-Cox power transformation of `x + E`, where `E = max(x) / 1000` |  
 
 Note that both `athena eigen-bins` and `athena feature-hists` accept these transformation options, allowing you to re-plot features after transformation to check the distributions of your transformed data as it will be used during Eigendecomposition.  
 
@@ -382,6 +386,44 @@ $ athena eigen-bins \
 
 ---  
 
+### Step 6: Count SVs per training bin  
+
+After annotating all bins with Eigenfeatures as described in [step 5 (above)](https://github.com/talkowski-lab/athena#step-5-collapse-correlated-1d-annotations), we next need to intersect the set of SVs and bins to be used for training the mutation rate model.  
+
+This can be accomplished with `athena count-sv`; for example:  
+```
+$ athena count-sv -z \
+    --sv-format vcf \
+    --comparison interval \
+    GRCh37.autosomes.5kb_bins.training.bed.gz \
+    athena_training_deletions.vcf.gz \
+    GRCh37.autosomes.5kb_bins.training.wSV.bed.gz
+```
+
+---  
+
+### Step 7: Train 1D mutation rate model  
+
+Training the 1D mutation rate model reqiuires the following inputs:  
+ 1. A BED file of training bins (see [step 3](https://github.com/talkowski-lab/athena#step-3-create-1d-bins-genome-wide)) with counts of SVs overlapping each bin (see [step 6](https://github.com/talkowski-lab/athena#step-6-count-svs-per-training-bin)); and 
+ 2. A BED of bins that:
+    * includes all training bins; and
+    * has been annotated with the desired covariates to include in the mutation rate model (see [step 4](https://github.com/talkowski-lab/athena#step-4-annotate-1d-training-bins)); and
+    * for which the correlation structure between annotations has been collapsed (see [step 5](https://github.com/talkowski-lab/athena#step-5-collapse-correlated-1d-annotations)).  
+
+Given these two inputs, you can train a 1D mutation rate model with `athena train-mu`.  
+
+Following the example dataset from above, we could create a mutation rate model as follows:  
+```
+$ athena train-mu \
+    GRCh37.autosomes.5kb_bins.training.wSV.bed.gz \
+    GRCh37.autosomes.5kb_bins.all.annotated.decomped.bed.gz
+```
+
+**Please note that this functionality is still in early development**
+
+---
+
 ### A note on design  
 
 This package was designed with canonical CNVs from [the gnomAD-SV callset](https://gnomad.broadinstitute.org/downloads) in mind.  
@@ -394,7 +436,7 @@ You can read more about the gnomAD-SV dataset [in the corresponding preprint](ht
 
 ### A note on parallellization  
 
-Some steps (especially [bin annotation](https://github.com/talkowski-lab/athena#step-4)) can be computationally demanding. In practice, it is recommended to parallelize by chromosome where possible.  
+Some steps (especially [bin annotation](https://github.com/talkowski-lab/athena#step-4-annotate-1d-training-bins)) can be computationally demanding. In practice, it is recommended to parallelize by chromosome where possible.  
 
 ### About the name  
 

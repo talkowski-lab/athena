@@ -17,7 +17,7 @@ from athena.utils.misc import bgzip as bgz
 from athena.utils.misc import vcf2bed
 
 
-def count_sv(bins_in, sv_in, outfile, sv_format, comparison):
+def count_sv(bins_in, sv_in, outfile, sv_format, comparison, min_cov, bgzip):
 
     # Load bins & retain header
     if path.splitext(bins_in)[1] in '.gz .bgz .gzip .bgzip'.split():
@@ -37,5 +37,23 @@ def count_sv(bins_in, sv_in, outfile, sv_format, comparison):
     if sv_format == 'vcf':
         vcf = pysam.VariantFile(sv_in)
         sv = vcf2bed(vcf, breakpoints=breakpoints)
-    import pdb; pdb.set_trace()
+    else:
+        sv = pybedtools.BedTool(sv_in)
+
+    # Perform intersection with bins 
+    if breakpoints == False:
+        bins = bins.intersect(sv, c=True, f=min_cov)
+    else:
+        print('Dev note: breakpoint intersection not yet implemented. Exiting.')
+        exit()
+
+    # Save bins
+    if '.gz' in outfile:
+        outfile = path.splitext(outfile)[0]
+    bins.saveas(outfile, trackline='\t'.join([bins_header, 'sv_count']))
+
+    # Bgzip bins, if optioned
+    if bgzip:
+        bgz(outfile)
+
     
