@@ -116,6 +116,9 @@ def makebins(genome, binsize, outfile_all, outfile_train, stepsize,
 @click.argument('png_prefix')
 @click.option('--ignore-columns', 'skip_cols', type=int, default=3, 
               help='Skip the first N columns for plotting')
+@click.option('--transformations-tsv', 'trans_tsv', help='Two-column tsv listing ' + 
+              'all transformations to be applied. Will supersede any transformations ' +
+              'passed as arguments.')
 @click.option('--log-transform', multiple=True, help='List of column names to ' +
               'be log-transformed prior to plotting. Note that the exact ' +
               'transformation is log10(x+max(x/1000)).')
@@ -128,11 +131,20 @@ def makebins(genome, binsize, outfile_all, outfile_train, stepsize,
 @click.option('--boxcox-transform', multiple=True, help='List of column names to ' +
               'be Box-Cox power-transformed prior to decomposition. Note that ' + 
               'the exact transformation is performed on x+max(x/1000).')
-def featurehists(bed, png_prefix, skip_cols, log_transform, sqrt_transform,
+def featurehists(bed, png_prefix, skip_cols, trans_tsv, log_transform, sqrt_transform,
                  exp_transform, square_transform, boxcox_transform):
   """
   Plot bin annotation distributions
   """
+
+  if trans_tsv is not None:
+      trans = utils.dfutils._load_transformations(trans_tsv)
+      log_transform = trans.get('log', [])
+      sqrt_transform = trans.get('sqrt', [])
+      exp_transform = trans.get('exp', [])
+      square_transform = trans.get('square', [])
+      boxcox_transform = trans.get('boxcox', [])
+
   utils.feature_hists(bed, png_prefix, skip_cols, log_transform, sqrt_transform,
                       exp_transform, square_transform, boxcox_transform)
 
@@ -158,23 +170,23 @@ def countsv(bins, sv, outfile, sv_format, comparison, min_cov, bgzip):
 
     # Ensure --sv-format is specified
     if sv_format not in 'vcf bed'.split():
-      from sys import exit
-      if sv_format is None:
-        err = 'INPUT ERROR: --sv-format is required. Options: "vcf" or "bed".'
-      else:
-        err = 'INPUT ERROR: --sv-format "{0}" not recognized. Options: "vcf" or "bed".'
-      exit(err.format(sv_format))
+        from sys import exit
+        if sv_format is None:
+            err = 'INPUT ERROR: --sv-format is required. Options: "vcf" or "bed".'
+        else:
+            err = 'INPUT ERROR: --sv-format "{0}" not recognized. Options: "vcf" or "bed".'
+        exit(err.format(sv_format))
 
     # Ensure --comparison is specified
     if comparison not in 'interval breakpoint'.split():
-      from sys import exit
-      if comparison is None:
-        err = 'INPUT ERROR: --comparison is required. Options: ' + \
-              '"interval" or "breakpoint".'
-      else:
-        err = 'INPUT ERROR: --comparison "{0}" not recognized. Options: ' + \
-              '"interval" or "breakpoint".'
-      exit(err.format(comparison))
+        from sys import exit
+        if comparison is None:
+            err = 'INPUT ERROR: --comparison is required. Options: ' + \
+                  '"interval" or "breakpoint".'
+        else:
+            err = 'INPUT ERROR: --comparison "{0}" not recognized. Options: ' + \
+                  '"interval" or "breakpoint".'
+        exit(err.format(comparison))
 
     utils.count_sv(bins, sv, outfile, sv_format, comparison, min_cov, bgzip)
 

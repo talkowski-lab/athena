@@ -9,11 +9,31 @@ Read and sanitize a subset of columns from a .tsv (e.g., annotations from a BED)
 """
 
 
+import csv
 import numpy as np
 import pandas as pd
 from scipy.stats import boxcox
 import warnings
 from sklearn.exceptions import DataConversionWarning
+
+
+def _load_transformations(trans_tsv):
+    """
+    Read all data transformations from a tsv file
+    """
+
+    all_trans = {}
+
+    with open(trans_tsv) as fin:
+        tsv = csv.reader(fin, delimiter='\t')
+        for trans, feature in tsv:
+            trans = trans.replace('--', '').split('-')[0]
+            if trans in all_trans.keys():
+                all_trans[trans].append(feature)
+            else:
+                all_trans[trans] = [feature]
+
+    return all_trans
 
 
 def _clean_missing_vals(df, fill_missing):

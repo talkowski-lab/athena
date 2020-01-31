@@ -13,7 +13,7 @@ import pandas as pd
 import numpy as np
 from os import path
 from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA, FastICA
 from scipy.stats import spearmanr
 import pybedtools
 from athena.utils.misc import bgzip as bgz
@@ -72,11 +72,11 @@ def float_cleanup(df, maxfloat, start_idx):
 
 
 # Master function for Eigendecomposition of bin annotations
-def decompose_bins(bins, outfile, components=10, minvar=None, log_transform=None, 
-                   sqrt_transform=None, exp_transform=None, square_transform=None, 
-                   boxcox_transform=None, fill_missing=0, first_column=3, maxfloat=5, 
-                   max_pcs=100, pca_stats=None, eigen_prefix='eigenfeature', 
-                   bgzip=False):
+def decompose_bins(bins, outfile, ica=False, components=10, minvar=None, 
+                   log_transform=None, sqrt_transform=None, exp_transform=None, 
+                   square_transform=None, boxcox_transform=None, fill_missing=0, 
+                   first_column=3, maxfloat=5, max_pcs=100, pca_stats=None, 
+                   eigen_prefix='eigenfeature', bgzip=False):
 
     # Read bins, then sanitize and transform annotations
     df_bins = pd.read_csv(bins, sep='\t', usecols=range(3))
@@ -89,13 +89,19 @@ def decompose_bins(bins, outfile, components=10, minvar=None, log_transform=None
     # Scale all columns
     df_annos = StandardScaler().fit_transform(df_annos)
 
-    # Perform PCA
+    # Decompose annotations
     pcs_to_calc = min([df_annos.shape[1], max_pcs])
-    pca = PCA(n_components=pcs_to_calc)
-    pcs = pca.fit_transform(df_annos)
-    if minvar is not None:
-        components = len([i for i in np.cumsum(pca.explained_variance_ratio_) \
-                          if i < minvar]) + 1
+    if ica:
+        ica = FastICA(n_components=pcs_to_calc)
+        ics = ica.fit_transform(df_annos)
+        exit('DEV NOTE: ICA is not currently supported. Exiting.')
+    else:
+        pca = PCA(n_components=pcs_to_calc)
+        pcs = pca.fit_transform(df_annos)
+        if minvar is not None:
+            components = len([i for i in np.cumsum(pca.explained_variance_ratio_) \
+                              if i < minvar]) + 1
+
     eigen_names = ['_'.join([eigen_prefix, str(i+1)]) for i in range(components)]
     df_pcs = pd.DataFrame(pcs[:, :components], columns = eigen_names)
 
