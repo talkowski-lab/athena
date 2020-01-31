@@ -15,8 +15,9 @@ import pandas as pd
 from numpy import nan
 from datetime import datetime
 from athena.mutrate import ucsc
-from athena.utils.misc import chromsort
+from athena.utils.misc import chromsort, load_snv_mus, snv_mu_from_seq
 import pyBigWig
+import itertools
 from gzip import GzipFile
 from os import path
 
@@ -134,7 +135,7 @@ def float_cleanup(bins, maxfloat, start_idx):
     Clean up long floats in last column of bins
     """
 
-    df = pd.read_csv(bins.fn, sep='\t', header=None)
+    df = pd.read_csv(bins.fn, sep='\t', header=None, comment='#')
     df.iloc[:, start_idx:] = df.iloc[:, start_idx:].replace('.',nan).apply(pd.to_numeric).round(maxfloat)
     bins = pybedtools.BedTool.from_dataframe(df)
 
@@ -214,7 +215,7 @@ def add_ucsc_track(bins, db, track, action, query_regions, maxfloat, ucsc_ref,
     return bins
 
 
-def add_nuc_content(bins, fasta, maxfloat, quiet):
+def add_nuc_content(bins, fasta, maxfloat):
     """
     Annotate nucleotide content from a reference fasta
     """
@@ -223,15 +224,58 @@ def add_nuc_content(bins, fasta, maxfloat, quiet):
     if path.splitext(fasta)[1] in '.bgz .gz .gzip'.split():
         fasta = GzipFile(fasta)
     pct_gc = [f[4] for f in bins.cut(range(3)).nucleotide_content(fi=fasta)]
-    df = pd.read_csv(bins.fn, sep='\t', header=None)
+    df = pd.read_csv(bins.fn, sep='\t', header=None, comment='#')
     df['pct_gc'] = pct_gc
     bins = pybedtools.BedTool.from_dataframe(df)
 
     return bins
 
 
+def add_snv_mu(bins, fasta, snv_mus, maxfloat):
+    """
+    Annotate SNV mutation rate from a reference fasta
+    """
+
+    # Extend all bins by 1bp at start and end (need trinucleotide context for mu)
+    bins.saveas()
+    def _increment_bin(feat, dist=1, start=True, end=True):
+        if start:
+            feat.start = feat.start - dist
+        if end:
+            feat.end = feat.end + dist
+        return feat
+    buffbins = pybedtools.BedTool(bins).each(_increment_bin)
+
+    snv_mu_dict = load_snv_mus(snv_mus)
+
+    if path.splitext(fasta)[1] in '.bgz .gz .gzip'.split():
+        fasta = GzipFile(fasta)
+
+    mubins_str = ''
+    fseqs = buffbins.sequence(fasta).seqfn
+    with open(fseqs) as fin:
+        for seqheader, seq in itertools.zip_longest(*[fin]*2):
+            coords = seqheader.rstrip().replace('>', '').replace(':', '\t')\
+                     .replace('-', '\t').split('\t')
+            coords_fmt = '{}\t{}\t{}'.format(coords[0], int(coords[1]) + 1, 
+                                             int(coords[2]) - 1)
+            mu = snv_mu_from_seq(seq.rstrip(), snv_mu_dict)
+            newbin = '\t'.join([coords_fmt, str(mu)])
+            mubins_str = '\n'.join([mubins_str, newbin])
+    mubins = pybedtools.BedTool(mubins_str, from_string=True)
+    
+    mudf = mubins.to_dataframe(names=['chrom', 'start', 'end', 'snv_mu'])
+    df = pd.read_csv(bins.fn, sep='\t', header=None, comment='#')
+    df.columns = ['chrom', 'start', 'end'] + df.columns.tolist()[3:]
+    newdf = pd.merge(df, mudf, on=['chrom', 'start', 'end'], how='left', sort=False)
+
+    bins = pybedtools.BedTool.from_dataframe(newdf)
+
+    return bins
+
+
 def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref, 
-                  actions, fasta, maxfloat, ucsc_chromsplit, quiet):
+                  actions, fasta, snv_mus, maxfloat, ucsc_chromsplit, quiet):
     """
     Master bin annotation function
     """
@@ -309,11 +353,21 @@ def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref,
             print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
                                     fasta))
 
-        bins = add_nuc_content(bins, fasta, maxfloat, quiet)
+        bins = add_nuc_content(bins, fasta, maxfloat)
 
+        # Annotate bins with SNV mutation rates, if optioned
+        if snv_mus is not None:
+            if quiet is False:
+                status_msg = '[{0}] athena annotate-bins: Adding SNV mutation ' + \
+                             'rates from reference fasta "{1}".'
+                print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
+                                        fasta))
+
+            bins = add_snv_mu(bins, fasta, snv_mus, maxfloat)
+    
 
     # Clean up long floats
     bins = float_cleanup(bins, maxfloat, start_idx=n_cols_old)
 
-
     return bins
+

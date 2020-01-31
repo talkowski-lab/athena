@@ -58,7 +58,6 @@ def make_bins(genome, binsize, outfile_all, outfile_train, stepsize,
         outfile_all = path.splitext(outfile_all)[0]
     bins.saveas(outfile_all, trackline='\t'.join(['#chr','start','end']))
 
-    # Bgzip bins, if optioned
     if bgzip:
         bgz(outfile_all)
 
@@ -74,7 +73,6 @@ def make_bins(genome, binsize, outfile_all, outfile_train, stepsize,
         if '.gz' in outfile_train:
             outfile_train = path.splitext(outfile_train)[0]
         tbins.saveas(outfile_train, trackline='\t'.join(['#chr','start','end']))
-
-        # Bgzip bins, if optioned
+        
         if bgzip:
             bgz(outfile_train)

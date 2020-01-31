@@ -19,10 +19,15 @@ This file was compiled by taking the union of two datasets: (1) all exons from t
 
 The nonredundant union of these two sources comprises 253,628 distinct intervals over a total of 44.5Mb, or roughly \~1.5% of the alignable primary GRCh37 reference assembly.  
 
-### GRCh37 references  
+### GRCh37 resources  
 
 **N-mask:** `GRCh37.Nmask.bed.gz`  
 This is a BED file of the N-masked regions of the GRCh37 reference assembly, as provided by the [UCSC Genome Browser](http://genome.ucsc.edu).  
 
 **Genome file:** `GRCh37.genome`  
 This is a [BEDTools-style](https://bedtools.readthedocs.io/en/latest/content/tools/genomecov.html) genome file, which lists all contigs in the GRCh37 primary assembly and their lengths.  
+
+### Other resources  
+
+***SNV mutation rates per trinucleotide context*** `snv_mutation_rates.Samocha_2014.tsv.gz`  
+This is a tsv enumerating the relative mutation rates of all single-nucleotide changes given all possible trinucleotide contexts, as presented in [Samocha _et al._, _Nat. Genet._ (2014)](https://www.ncbi.nlm.nih.gov/pubmed/25086666).  

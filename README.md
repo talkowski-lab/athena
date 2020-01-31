@@ -212,11 +212,10 @@ Supported data sources are listed in below:
 | [UCSC-Hosted BigWig Tracks](https://genome.ucsc.edu/cgi-bin/hgTables)<sup>2</sup> | Hosted by UCSC | `--ucsc-track` | `--map-mean`, `--map-sum`, `--map-min`, `--map-max` |  
 | [FASTA](https://zhanglab.ccmb.med.umich.edu/FASTA/) | Local | `--fasta` | _None required<sup>3</sup>_ |  
 
-
 #### Notes:
  1. If specifying a remote BigWig file, pass the full URL of the remote-hosted file to `--track`.  
  2. If any UCSC tracks are requested, the UCSC reference build must also be specified with `--ucsc-ref`. Athena will automatically handle necessary conversions between GRC & UCSC contig nomenclature (_e.g._, `chr1` vs `1`).  
- 3. Specifying `--fasta` adds a `pct_gc` annotation, which is the GC content of each bin.  
+ 3. Specifying `--fasta` adds a `pct_gc` annotation, which is the GC content of each bin. Further passing a trinucleotide SNV mutation rate lookup table as `--snv-mutrate` will add a `snv_mu` annotation, with is the cumulative SNV mutation rate for the DNA sequence of each bin. An example trinucleotide SNV mutation rate lookup table can be found in `data/snv_mutation_rates.Samocha_2014.tsv.gz`.  
 
 The exact annotations added at this stage are for the user to decide.  
 
@@ -422,7 +421,23 @@ $ athena train-mu \
 
 **Please note that this functionality is still in early development**
 
----
+---  
+
+### Step 8: Create 2D bin-pairs genome-wide  
+
+After training the 1D mutation rate model, the next component of the Athena workflow is to build the 2D mutation rate model.  
+
+The first step of the 2D modeling process is to create bin-pairs genome-wide.  
+
+Bin pairing can be accomplished with `athena pair-bins`, which follows many similar parameters as `athena make-bins` (as described in [step 3, above](https://github.com/talkowski-lab/athena#step-3-create-1d-bins-genome-wide)).  
+
+However, there are two key differences in `athena pair-bins` as compared to `athena make-bins`:
+  1. Users must specify a maximum bin-to-bin distance to be considered during pairing by using the `--max-dist-all` argument; and
+  2. Blacklists are applied to the outer span of the distance between the two bins. For more information, see the [`bedtools pairtobed` documentation](https://daler.github.io/pybedtools/autodocs/pybedtools.bedtool.BedTool.pair_to_bed.html).  
+
+Finally, a smaller distance for pairs to be used in model training can be specified using `--max-dist-training`.  
+
+For an example, using the genome-wide bin BED file output from [step 3](https://github.com/talkowski-lab/athena#step-3-create-1d-bins-genome-wide)), and based on the parameters estimated in [step 2](https://github.com/talkowski-lab/athena#step-2-optional-calculate-sv-size--spacing-distributions) of 160kb maximum distance between any two bins and 50kb maximum distance between any two bins used for training, we could 
 
 ### A note on design  
 

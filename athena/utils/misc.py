@@ -12,6 +12,9 @@ Miscellaneous utilities
 import subprocess
 from scipy.stats import chi2
 import pybedtools
+from os import path
+import gzip
+import csv
 
 
 def bgzip(filename):
@@ -106,4 +109,38 @@ def vcf2bed(vcf, breakpoints=False):
     bed = pybedtools.BedTool(intervals, from_string=True)
 
     return bed
+
+
+def load_snv_mus(snv_mus):
+    """
+    Collapse all possible SNV mutation rates per trinucleotide context
+    """
+
+    snv_mu_dict = {}
+
+    if path.splitext(snv_mus)[1] in '.bgz .gz .gzip'.split():
+        fin = gzip.open(snv_mus, 'rt')
+    else:
+        fin = open(snv_mus)
+    next(fin)
+        
+    tsv = csv.reader(fin, delimiter='\t')
+
+    for ref, alt, rate in tsv:
+        if ref in snv_mu_dict.keys():
+            snv_mu_dict[ref] += float(rate)
+        else:
+            snv_mu_dict[ref] = float(rate)
+
+    return snv_mu_dict
+
+
+def snv_mu_from_seq(seq, snv_mu_dict):
+    """
+    Calculate total SNV mutation rate for a given DNA sequence
+    """
+
+    mus = [snv_mu_dict.get(seq[(i-1):(i+2)], 0) for i in range(1, len(seq)-1)]
+
+    return sum(mus)
 

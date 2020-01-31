@@ -211,10 +211,3 @@ def pairbins(bins, outfile_all, outfile_train, max_dist_all, max_dist_train, bla
   utils.pair_bins(bins, outfile_all, outfile_train, max_dist_all, max_dist_train, blacklist_all,
                   blacklist_train, bl_buffer, bgzip)
 
-
-
-def pair():
-    """
-    Pair bins
-    """
-    click.echo('Pair bins (in dev.)')

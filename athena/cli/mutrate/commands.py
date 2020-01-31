@@ -63,18 +63,21 @@ from datetime import datetime
 @click.option('--fasta', default=None, help='Reference genome fasta file. If ' +
               'supplied, will annotate all bins with nucleotide content. Will ' +
               'also generate fasta index if not already available locally.')
+@click.option('--snv-mutrate', 'snv_mus', default=None, help='tsv file with ' +
+              'trinucleotide context mutation rates for SNVs. Will be used to ' +
+              'annotate SNV mutation rate per bin if --fasta is also provided.')
 @click.option('--no-ucsc-chromsplit', is_flag=True, default=False, 
               help='Disable serial per-chromosome queries for UCSC tracks. May ' + 
               'improve annotation speed. Not recommended unless input bin file ' +
               'is small.')
-@click.option('--maxfloat', type=int, default=5, 
-              help='Maximum precision of floating-point values. [5]')
+@click.option('--maxfloat', type=int, default=10, 
+              help='Maximum precision of floating-point values.')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output with bgzip.')
 @click.option('-q', '--quiet', is_flag=True, default=False, 
               help='Silence progress messages.')
 def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_ref, 
-                 actions, track_names, track_list, ucsc_list, fasta, 
+                 actions, track_names, track_list, ucsc_list, fasta, snv_mus,
                  no_ucsc_chromsplit, maxfloat, bgzip, quiet):
     """
     Annotate bins
@@ -132,11 +135,13 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
     newheader = header + '\t' + '\t'.join(list(track_names))
     if fasta is not None:
         newheader = '\t'.join([newheader, 'pct_gc'])
+        if snv_mus is not None:
+          newheader = '\t'.join([newheader, 'snv_mu'])
     
     # Annotate bins
     newbins = mutrate.annotate_bins(bins, include_chroms, ranges, track, 
                                     ucsc_track, ucsc_ref, actions, fasta,
-                                    maxfloat, ucsc_chromsplit, quiet)
+                                    snv_mus, maxfloat, ucsc_chromsplit, quiet)
 
     # Save annotated bins
     if '.gz' in outfile:
@@ -174,8 +179,8 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
               'impute on a per-column basis. [0]')
 @click.option('--skip-columns', type=int, default=3,
               help='Skip first N columns of input bins. [3]')
-@click.option('--maxfloat', type=int, default=5, 
-              help='Maximum precision of floating-point values. [5]')
+@click.option('--maxfloat', type=int, default=10, 
+              help='Maximum precision of floating-point values.')
 @click.option('--max-pcs', type=int, default=100, help='Maximum number of ' +
               'principal components to calculate. [100]')
 @click.option('-s', '--stats', default=None,
