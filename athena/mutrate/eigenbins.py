@@ -79,7 +79,7 @@ def decompose_bins(bins, outfile, ica=False, components=10, minvar=None,
                    eigen_prefix='eigenfeature', bgzip=False):
 
     # Read bins, then sanitize and transform annotations
-    df_bins = pd.read_csv(bins, sep='\t', usecols=range(3))
+    df_bins = pd.read_csv(bins, sep='\t', usecols=range(first_column))
     df_annos = dfutils.load_feature_df(bins, first_column, log_transform,
                                        sqrt_transform, exp_transform, 
                                        square_transform,  boxcox_transform,
