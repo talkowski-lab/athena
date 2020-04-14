@@ -14,16 +14,16 @@ from os import path
 from athena.utils.misc import bgzip as bgz
 
 
-def _apply_blacklist(bins, blacklists, bl_buffer):
+def _apply_blacklist(bins, blacklists, bl_buffer, bl_cov):
     if isinstance(blacklists, tuple):
         for bl in blacklists:
             xbt = pybedtools.BedTool(bl)
             xbt = xbt.each(_buffer_blacklist, bl_buffer=bl_buffer).merge()
-            bins = bins.intersect(xbt, v=True)
+            bins = bins.intersect(xbt, v=True, f=bl_cov)
     else:
         xbt = pybedtools.BedTool(blacklists)
         xbt = xbt.each(_buffer_blacklist, bl_buffer=bl_buffer).merge()
-        bins = bins.intersect(xbt, v=True)
+        bins = bins.intersect(xbt, v=True, f=bl_cov)
     return bins
 
 
@@ -34,7 +34,7 @@ def _buffer_blacklist(interval, bl_buffer):
 
 
 def make_bins(genome, binsize, outfile_all, outfile_train, stepsize, 
-              blacklist_all, blacklist_train, bl_buffer, xchroms, bgzip):
+              blacklist_all, blacklist_train, bl_buffer, bl_cov, xchroms, bgzip):
 
     # Create bins
     if stepsize is None:
@@ -51,7 +51,7 @@ def make_bins(genome, binsize, outfile_all, outfile_train, stepsize,
 
     # Filter all bins
     if blacklist_all is not None:
-        bins = _apply_blacklist(bins, blacklist_all, bl_buffer)
+        bins = _apply_blacklist(bins, blacklist_all, bl_buffer, bl_cov)
 
     # Save bins
     if '.gz' in outfile_all:
@@ -65,7 +65,7 @@ def make_bins(genome, binsize, outfile_all, outfile_train, stepsize,
     if outfile_train is not None:
         # Create & blacklist training bins
         if blacklist_train is not None:
-            tbins = _apply_blacklist(bins, blacklist_train, bl_buffer)
+            tbins = _apply_blacklist(bins, blacklist_train, bl_buffer, bl_cov)
         else:
             tbins = bins
 

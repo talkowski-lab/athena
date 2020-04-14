@@ -93,6 +93,9 @@ def vcfstats(vcf, quantiles):
               help='Pad blacklist intervals prior to intersection. If multiple ' + 
               'blacklists are specified, elements from each blacklist will be ' + 
               'padded separately.')
+@click.option('--blacklist-cov', 'bl_cov', default=1e-9, type=float,
+              help='Minimum fraction of bin that must be covered by blacklists ' +
+              'prior to being excluded.')
 @click.option('--exclude-chroms', 'xchroms', default=None, 
               help='Chromosomes to exclude (comma-separated) ' + 
               '[default: exclude no chromosomes]')
@@ -102,12 +105,13 @@ def vcfstats(vcf, quantiles):
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output with bgzip')
 def makebins(genome, binsize, outfile_all, outfile_train, stepsize, 
-             blacklist_all, blacklist_train, bl_buffer, xchroms, bgzip):
+             blacklist_all, blacklist_train, bl_buffer, bl_cov, xchroms, bgzip):
     """
     Create sequential bins
     """
     utils.make_bins(genome, binsize, outfile_all, outfile_train, stepsize, 
-                    blacklist_all, blacklist_train, bl_buffer, xchroms, bgzip)
+                    blacklist_all, blacklist_train, bl_buffer, bl_cov, xchroms, 
+                    bgzip)
 
 
 # Plot feature distributions
