@@ -46,6 +46,9 @@ from athena import utils
 @click.option('--pHWE', 'HWE', type=float, default=None, 
               help='Minimum Hardy-Weinberg equilibrium p-value to include ' + 
                    '[default: Do not filter on HWE]')
+@click.option('--af-field', 'af_field', default='AF',
+              help='INFO field to use for allele frequency filtering. ' +
+              '[default: AF]')
 @click.option('--keep-infos', 'keep_infos', default=None,
               help='INFO fields to retain in output VCF (comma-separated). ' + 
                    'Will always retain the following: END, CHR2, SVTYPE, SVLEN. ' + 
@@ -54,14 +57,14 @@ from athena import utils
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output with bgzip')
 def filtervcf(vcf, out, chroms, xchroms, svtypes, blacklist, minAF, maxAF, 
-              minAC, maxAC, minAN, filters, minQUAL, maxQUAL, HWE, 
+              minAC, maxAC, minAN, filters, minQUAL, maxQUAL, HWE, af_field, 
               keep_infos, bgzip):
     """
     Filter an input VCF
     """
     utils.filter_vcf(vcf, out, chroms, xchroms, svtypes, blacklist, 
                      minAF, maxAF, minAC, maxAC, minAN, filters, 
-                     minQUAL, maxQUAL, HWE, keep_infos, bgzip)
+                     minQUAL, maxQUAL, HWE, af_field, keep_infos, bgzip)
 
 
 # Gathers size distributions per SV class from a VCF

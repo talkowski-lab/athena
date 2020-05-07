@@ -13,14 +13,14 @@ import pysam
 from sys import stdin, stdout, exit
 from os import path
 import pybedtools
-# import pandas as pd
+import numpy as np
 from athena.utils.misc import bgzip as bgz
 from athena.utils.misc import hwe_chisq
 
 
 def filter_vcf(vcf, out, chroms, xchroms, svtypes, blacklist, 
                minAF, maxAF, minAC, maxAC, minAN, filters, 
-               minQUAL, maxQUAL, HWE, keep_infos, bgzip):
+               minQUAL, maxQUAL, HWE, af_field, keep_infos, bgzip):
 
     # Open connection to input VCF
     if vcf in '- stdin'.split():
@@ -70,7 +70,7 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, blacklist,
         # bl = pd.read_csv(blacklist, sep='\t', names='chrom start end'.split())
 
     # Raise warning if AF or AC are missing from VCF
-    for key in 'AF AC'.split():
+    for key in [af_field, 'AC']:
         if key not in header.info.keys():
             import warnings
             warning_message = '{0} not found in VCF INFO, so {0}-based filtering ' + \
@@ -103,19 +103,19 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, blacklist,
             continue
 
         # Filter by AF/AC
-        if 'AF' in record.info.keys() \
-        and 'AC' in record.info.keys():
+        if af_field in record.info.keys():
             if minAF is not None:
-                if sum(record.info['AF']) < minAF:
+                if np.nansum(record.info[af_field]) < minAF:
                     continue
             if maxAF is not None:
-                if sum(record.info['AF']) > maxAF:
-                    continue
+                if np.nansum(record.info[af_field]) > maxAF:
+                    continue        
+        if 'AC' in record.info.keys():
             if minAC is not None:
-                if sum(record.info['AC']) < minAC:
+                if np.nansum(record.info['AC']) < minAC:
                     continue
             if maxAC is not None:
-                if sum(record.info['AC']) > maxAC:
+                if np.nansum(record.info['AC']) > maxAC:
                     continue
 
         # Filter by AN
@@ -139,7 +139,7 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, blacklist,
 
         # Filter by Hardy-Weinberg equilibrium
         if HWE is not None and len(record.alts) < 3:
-            if sum(record.info['AF']) < 1:
+            if np.nansum(record.info[af_field]) < 1:
                 if hwe_chisq(record) < HWE:
                     continue
 
