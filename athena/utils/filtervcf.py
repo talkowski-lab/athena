@@ -131,11 +131,13 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, blacklist,
 
         # Filter by QUAL score
         if minQUAL is not None \
-        and record.qual < minQUAL:
-            continue
+        and record.qual is not None:
+            if record.qual < minQUAL:
+                continue
         if maxQUAL is not None \
-        and record.qual > maxQUAL:
-            continue
+        and record.qual is not None:
+            if record.qual > maxQUAL:
+                continue
 
         # Filter by Hardy-Weinberg equilibrium
         if HWE is not None and len(record.alts) < 3:
