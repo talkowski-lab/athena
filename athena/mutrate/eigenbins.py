@@ -99,12 +99,12 @@ def decompose_bins(bins, outfile, ica=False, components=10, minvar=None,
         pca = PCA(n_components=pcs_to_calc)
         pcs = pca.fit_transform(df_annos)
         if minvar is None:
-            components = pcs_to_calc + 1
+            components = pcs_to_calc
         else:
             components = len([i for i in np.cumsum(pca.explained_variance_ratio_) \
-                              if i < minvar]) + 1
+                              if i < minvar])
 
-    eigen_names = ['_'.join([eigen_prefix, str(i+1)]) for i in range(components-1)]
+    eigen_names = ['_'.join([eigen_prefix, str(i+1)]) for i in range(components)]
     df_pcs = pd.DataFrame(pcs[:, :components], columns = eigen_names)
 
     # Write output bins with PCs
