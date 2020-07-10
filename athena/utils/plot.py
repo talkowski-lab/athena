@@ -16,9 +16,9 @@ import pandas as pd
 
 
 def feature_hists(bed, png_prefix, skip_cols=3, log_transform=None, 
-                   sqrt_transform=None, exp_transform=None, 
-                   square_transform=None,  boxcox_transform=None,
-                   fill_missing=None):
+                  sqrt_transform=None, exp_transform=None, 
+                  square_transform=None,  boxcox_transform=None,
+                  fill_missing=None):
     """
     Plot simple histograms for all columns in a BED file
     """
@@ -58,6 +58,7 @@ def feature_hists(bed, png_prefix, skip_cols=3, log_transform=None,
     for i in range(len(df.columns)):
         title = df.columns[i]
         vals = df[title]
+        plot_title = title.replace('/', '_').replace(' ', '_')
         _simple_hist(vals, title)
-        plt.savefig('.'.join([png_prefix, title, 'png']), format='png')
+        plt.savefig('.'.join([png_prefix, plot_title, 'png']), format='png')
 

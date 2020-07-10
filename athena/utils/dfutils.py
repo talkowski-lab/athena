@@ -57,103 +57,127 @@ def _clean_missing_vals(df, fill_missing):
     return df
 
 
-def _log_trans(df, column):
+def _log_trans(df, column, strict=False):
     """
     Perform log-transformation of a single feature
     """
     
     if column not in list(df.columns):
-        from sys import exit
         err = 'ERROR: "{0}" is not a recognized feature name in input bins; ' + \
               'log transformation failed'
-        exit(err.format(column))
+        if strict:
+            from sys import exit
+            exit(err.format(column))
+        else:
+            print(err.format(column))
+            return df
 
-    df[[column]] = df[[column]].apply(pd.to_numeric, errors='coerce')
-
-    maxval = np.nanmax(df[[column]])
-
-    df[[column]] = np.log10(df[[column]] + maxval/1000)
-
-    return df
+    else:
+        df[[column]] = df[[column]].apply(pd.to_numeric, errors='coerce')
+        maxval = np.nanmax(df[[column]])
+        df[[column]] = np.log10(df[[column]] + maxval/1000)
+        return df
 
 
-def _sqrt_trans(df, column):
+def _sqrt_trans(df, column, strict=False):
     """
     Perform square root-transformation of a single feature
     """
     
     if column not in list(df.columns):
-        from sys import exit
         err = 'ERROR: "{0}" is not a recognized feature name in input bins; ' + \
-              'log transformation failed'
-        exit(err.format(column))
+              'square root transformation failed'
+        if strict:
+            from sys import exit
+            exit(err.format(column))
+        else:
+            print(err.format(column))
+            return df
 
-    df[[column]] = df[[column]].apply(pd.to_numeric, errors='coerce')
+    else:
+        df[[column]] = df[[column]].apply(pd.to_numeric, errors='coerce')
+        df[[column]] = np.sqrt(df[[column]])
+        return df
 
-    df[[column]] = np.sqrt(df[[column]])
 
-    return df
-
-
-def _exp_trans(df, column):
+def _exp_trans(df, column, strict=False):
     """
     Perform exponential-transformation of a single feature
     """
     
     if column not in list(df.columns):
-        from sys import exit
         err = 'ERROR: "{0}" is not a recognized feature name in input bins; ' + \
               'exponential transformation failed'
-        exit(err.format(column))
+        if strict:
+            from sys import exit
+            exit(err.format(column))
+        else:
+            print(err.format(column))
+            return df
 
-    df[[column]] = df[[column]].apply(pd.to_numeric, errors='coerce')
+    else:
+        df[[column]] = df[[column]].apply(pd.to_numeric, errors='coerce')
+        df[[column]] = np.exp(df[[column]])
+        return df
 
-    df[[column]] = np.exp(df[[column]])
 
-    return df
-
-
-def _square_trans(df, column):
+def _square_trans(df, column, strict=False):
     """
     Perform square-transformation of a single feature
     """
     
     if column not in list(df.columns):
-        from sys import exit
         err = 'ERROR: "{0}" is not a recognized feature name in input bins; ' + \
               'square transformation failed'
-        exit(err.format(column))
+        if strict:
+            from sys import exit
+            exit(err.format(column))
+        else:
+            print(err.format(column))
+            return df
 
-    df[[column]] = df[[column]].apply(pd.to_numeric, errors='coerce')
+    else:
+        df[[column]] = df[[column]].apply(pd.to_numeric, errors='coerce')
+        df[[column]] = df[[column]] ** 2
+        return df
 
-    df[[column]] = df[[column]] ** 2
 
-    return df
-
-
-def _boxcox_trans(df, column):
+def _boxcox_trans(df, column, strict=False):
     """
     Perform Box-Cox power transformation of a single feature
     """
     
     if column not in list(df.columns):
-        from sys import exit
         err = 'ERROR: "{0}" is not a recognized feature name in input bins; ' + \
               'Box-Cox transformation failed'
-        exit(err.format(column))
+        if strict:
+            from sys import exit
+            exit(err.format(column))
+        else:
+            print(err.format(column))
+            return df
 
-    df[[column]] = df[[column]].apply(pd.to_numeric, errors='coerce')
+    else:
+        df[[column]] = df[[column]].apply(pd.to_numeric, errors='coerce')
+        maxval = np.nanmax(df[[column]])
+        minval = np.nanmin(df[[column]])
+        if minval >= 0:
+            df[column] = boxcox(df[column] + maxval/1000)[0]
+        else:
+            err = 'ERROR: negative values of "{}" are not allowed in Box-Cox ' + \
+                      'transformation'
+            if strict:
+                from sys import exit
+                exit(err.format(column))
+            else:
+                print(err.format(column))
 
-    maxval = np.nanmax(df[[column]])
-
-    df[[column]] = boxcox(df[[column]] + maxval/1000)[0]
-
-    return df
+        return df
 
 
 def load_feature_df(tsv, first_column=3, log_transform=None, sqrt_transform=None,
                     exp_transform=None, square_transform=None, boxcox_transform=None, 
-                    fill_missing=None, warn=False):
+                    fill_missing=None, warn=False, strict=False):
     """
     Wrapper function to load and sanitize features from a tsv input
     """
@@ -172,23 +196,23 @@ def load_feature_df(tsv, first_column=3, log_transform=None, sqrt_transform=None
     # Transform any columns as optioned
     if log_transform is not None:
         for column in log_transform:
-            df = _log_trans(df, column)
+            df = _log_trans(df, column, strict)
 
     if sqrt_transform is not None:
         for column in sqrt_transform:
-            df = _sqrt_trans(df, column)
+            df = _sqrt_trans(df, column, strict)
 
     if exp_transform is not None:
         for column in exp_transform:
-            df = _exp_trans(df, column)
+            df = _exp_trans(df, column, strict)
 
     if square_transform is not None:
         for column in square_transform:
-            df = _square_trans(df, column)
+            df = _square_trans(df, column, strict)
 
     if boxcox_transform is not None:
         for column in boxcox_transform:
-            df = _boxcox_trans(df, column)
+            df = _boxcox_trans(df, column, strict)
 
     return df
 
