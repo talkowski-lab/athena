@@ -15,6 +15,9 @@ import pandas as pd
 from scipy.stats import boxcox
 import warnings
 from sklearn.exceptions import DataConversionWarning
+import pandas as pd
+from os import path
+from athena.utils import bgzip as bgz
 
 
 def _load_transformations(trans_tsv):
@@ -215,4 +218,26 @@ def load_feature_df(tsv, first_column=3, log_transform=None, sqrt_transform=None
             df = _boxcox_trans(df, column, strict)
 
     return df
+
+
+def transform_df(bed_in, bed_out, first_column=3, log_transform=None, 
+                sqrt_transform=None, exp_transform=None, square_transform=None, 
+                boxcox_transform=None, bgzip=False, fill_missing=None, 
+                warn=False, strict=False):
+    """
+    Wrapper function to load, transform, and write an annotated binset
+    """
+
+    df_bins = pd.read_csv(bed_in, sep='\t', usecols=range(first_column))
+    df_annos = load_feature_df(bed_in, first_column, log_transform, sqrt_transform,
+                               exp_transform, square_transform, boxcox_transform,
+                               fill_missing, warn, strict)
+    out_df = pd.concat([df_bins, df_annos], axis=1)
+
+    if '.gz' in bed_out:
+        bed_out = path.splitext(bed_out)[0]
+    out_df.to_csv(bed_out, sep='\t', na_rep='NA', index=False)
+
+    if bgzip:
+        bgz(bed_out)
 

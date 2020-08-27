@@ -39,7 +39,7 @@ RUN echo "[client]\nmax_allowed_packet = 2G" >> /etc/my.cnf
 # Clone & install Athena
 RUN git clone https://c9f6da1fb0dd9d5379c313700a1083f9633be849@github.com/talkowski-lab/athena /opt/athena \
     && cd /opt/athena \
-    && git checkout f80accb624c579bd1068a1fc2928b47f54aa4054 \
+    && git checkout 2651626a44ba72dd3ab9e630b94d9b06de38a05e \
     && cd -
 RUN cd /opt/athena \
     && pip install -e .

@@ -368,7 +368,7 @@ Fortunately, Athena can perform a few simple transformations of specified annota
 
 Alternatively, you can pass a tab-delimited list of transformations as a two-column .tsv file with `--transformations-tsv`. The first column specifies one of the five flags above, and the second column specifies the track name to which the transformation should be applied.  
 
-Note that both `athena eigen-bins` and `athena feature-hists` accept these transformation options, allowing you to re-plot features after transformation to check the distributions of your transformed data as it will be used during Eigendecomposition.  
+Note that multiple functions (`athena eigen-bins`, `athena transform`, and `athena feature-hists`) accept these transformation options, allowing you to re-plot features after transformation to check the distributions of your transformed data as it will be used during Eigendecomposition.  
 
 #### Eigendecomposition with transformed annotations  
 

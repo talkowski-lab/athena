@@ -13,6 +13,7 @@ import click
 from athena import utils
 
 
+
 # VCF filtering
 @click.command(name='vcf-filter')
 @click.argument('vcf', type=click.Path(exists=True))
@@ -154,6 +155,47 @@ def featurehists(bed, png_prefix, skip_cols, trans_tsv, log_transform, sqrt_tran
 
   utils.feature_hists(bed, png_prefix, skip_cols, log_transform, sqrt_transform,
                       exp_transform, square_transform, boxcox_transform)
+
+
+# Transform binwise annotations collected with annotate-bins
+@click.command(name='transform')
+@click.argument('BED_in', type=click.Path(exists=True))
+@click.argument('BED_out')
+@click.option('--ignore-columns', 'skip_cols', type=int, default=3, 
+              help='Skip the first N columns for plotting')
+@click.option('--transformations-tsv', 'trans_tsv', help='Two-column tsv listing ' + 
+              'all transformations to be applied. Will supersede any transformations ' +
+              'passed as arguments.')
+@click.option('--log-transform', multiple=True, help='List of column names to ' +
+              'be log-transformed prior to plotting. Note that the exact ' +
+              'transformation is log10(x+max(x/1000)).')
+@click.option('--sqrt-transform', multiple=True, help='List of column names to ' +
+              'be square root-transformed prior to plotting.')
+@click.option('--exp-transform', multiple=True, help='List of column names to ' +
+              'be exponential-transformed prior to plotting.')
+@click.option('--square-transform', multiple=True, help='List of column names to ' +
+              'be square-transformed prior to plotting.')
+@click.option('--boxcox-transform', multiple=True, help='List of column names to ' +
+              'be Box-Cox power-transformed prior to decomposition. Note that ' + 
+              'the exact transformation is performed on x+max(x/1000).')
+@click.option('-z', '--bgzip', is_flag=True, default=False, 
+              help='Compress output with bgzip')
+def transform(bed_in, bed_out, skip_cols, trans_tsv, log_transform, sqrt_transform,
+              exp_transform, square_transform, boxcox_transform, bgzip):
+  """
+  Transform one or more annotations
+  """
+
+  if trans_tsv is not None:
+      trans = utils.dfutils._load_transformations(trans_tsv)
+      log_transform = trans.get('log', [])
+      sqrt_transform = trans.get('sqrt', [])
+      exp_transform = trans.get('exp', [])
+      square_transform = trans.get('square', [])
+      boxcox_transform = trans.get('boxcox', [])
+
+  utils.transform_df(bed_in, bed_out, skip_cols, log_transform, sqrt_transform,
+                      exp_transform, square_transform, boxcox_transform, bgzip)
 
 
 # Intersect SVs and bins
