@@ -4,6 +4,8 @@
 Copyright (c) 2019, [Ryan L. Collins](mailto:rlcollins@g.harvard.edu) and the Talkowski Laboratory.  
 Distributed under terms of the [MIT License](/LICENSE) (see `LICENSE`).  
 
+#### Note: the functionality of this repo is incomplete and is under active development.  
+
 ---  
 
 ## Table of Contents
@@ -389,6 +391,8 @@ $ athena eigen-bins \
 
 ### Step 6: Count SVs per training bin  
 
+#### NOTE: NOT YET IMPLEMENTED. 
+
 After annotating all bins with Eigenfeatures as described in [step 5 (above)](https://github.com/talkowski-lab/athena#step-5-collapse-correlated-1d-annotations), we next need to intersect the set of SVs and bins to be used for training the mutation rate model.  
 
 This can be accomplished with `athena count-sv`; for example:  
@@ -404,6 +408,8 @@ $ athena count-sv -z \
 ---  
 
 ### Step 7: Train 1D mutation rate model  
+
+#### NOTE: NOT YET IMPLEMENTED  
 
 Training the 1D mutation rate model reqiuires the following inputs:  
  1. A BED file of training bins (see [step 3](https://github.com/talkowski-lab/athena#step-3-create-1d-bins-genome-wide)) with counts of SVs overlapping each bin (see [step 6](https://github.com/talkowski-lab/athena#step-6-count-svs-per-training-bin)); and 
@@ -426,6 +432,8 @@ $ athena train-mu \
 ---  
 
 ### Step 8: Create 2D bin-pairs genome-wide  
+
+#### NOTE: NOT YET IMPLEMENTED  
 
 After training the 1D mutation rate model, the next component of the Athena workflow is to build the 2D mutation rate model.  
 
