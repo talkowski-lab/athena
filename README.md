@@ -1,7 +1,7 @@
 # Athena
 #### A toolkit for exploring structural variation mutation rates and dosage sensitivity
 
-Copyright (c) 2019, [Ryan L. Collins](mailto:rlcollins@g.harvard.edu) and the Talkowski Laboratory.  
+Copyright (c) 2019-Present, [Ryan L. Collins](mailto:rlcollins@g.harvard.edu) and the Talkowski Laboratory.  
 Distributed under terms of the [MIT License](/LICENSE) (see `LICENSE`).  
 
 #### Note: the functionality of this repo is incomplete and is under active development.  
@@ -34,11 +34,11 @@ _Dosage sensitivity modeling_
 
 ## Run from Docker
 
-The recommended way to run Athena is from its dedicated Docker container. This will handle all dependencies and installation for you, and ensure you are running the latest version.
+The recommended way to run Athena is from its dedicated Docker container hosted on Google Container Registry. This will handle all dependencies and installation for you, and ensure you are running the latest version.
 
 ```
-$ docker pull rlcollins/athena
-$ docker run --rm -it rlcollins/athena
+$ docker pull us.gcr.io/broad-dsmap/athena
+$ docker run --rm -it us.gcr.io/broad-dsmap/athena
 ```
 
 ## Manual installation
