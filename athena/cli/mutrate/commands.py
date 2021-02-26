@@ -72,7 +72,7 @@ import athena.utils.dfutils as dfutils
               'improve annotation speed. Not recommended unless input bin file ' +
               'is small.')
 @click.option('--maxfloat', type=int, default=10, 
-              help='Maximum precision of floating-point values.')
+              help='Maximum precision of floating-point values. [default: 10]')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output with bgzip.')
 @click.option('-q', '--quiet', is_flag=True, default=False, 

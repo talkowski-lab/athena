@@ -210,14 +210,14 @@ def query_ucsc(bins, track, columns, conditions, db, action, query_ranges):
             result = query_table(track, db, 'bed', query_ranges, 
                                  columns, conditions)
             # Coerce to GRC nomenclature, if necessary
-            if 'chr' not in bins[0]:
+            if 'chr' not in bins[0].chrom:
                 result = result.each(_check_grc_compliance)
 
     elif action in 'count count-unique coverage'.split():
         result = query_table(track, db, 'bed', query_ranges,
                              columns, conditions)
         # Coerce to GRC nomenclature, if necessary
-        if 'chr' not in bins[0]:
+        if 'chr' not in bins[0].chrom:
             result = result.each(_check_grc_compliance).saveas()
 
     else:
