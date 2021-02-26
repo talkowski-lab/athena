@@ -10,7 +10,7 @@ Create bin-pairs for 2D models
 
 import pandas as pd
 import pybedtools
-from athena.utils.makebins import _buffer_blacklist
+from athena.utils.makebins import _buffer_exclusion_list
 from os import path
 from athena.utils.misc import bgzip as bgz
 
@@ -29,26 +29,26 @@ def _get_pairs(chrom, start, end, df, maxdist):
     return pybedtools.BedTool('\n'.join(pairs), from_string=True)
 
 
-def _pair_blacklist(bedpe, blacklists, bl_buffer):
+def _pair_exclusion_list(bedpe, exclusion_lists, excl_buffer):
     """
-    Exclude pairs from BEDPE based on inter-pair span overlapping blacklist
+    Exclude pairs from BEDPE based on inter-pair span overlapping exclusion list
     """
 
-    if isinstance(blacklists, tuple):
-        for bl in blacklists:
+    if isinstance(exclusion_lists, tuple):
+        for bl in exclusion_lists:
             xbt = pybedtools.BedTool(bl)
-            xbt = xbt.each(_buffer_blacklist, bl_buffer=bl_buffer).merge()
+            xbt = xbt.each(_buffer_exclusion_list, excl_buffer=excl_buffer).merge()
             bedpe = bedpe.pair_to_bed(b=xbt, type='notospan')
     else:
-        xbt = pybedtools.BedTool(blacklists)
-        xbt = xbt.each(_buffer_blacklist, bl_buffer=bl_buffer).merge()
+        xbt = pybedtools.BedTool(exclusion_lists)
+        xbt = xbt.each(_buffer_exclusion_list, excl_buffer=excl_buffer).merge()
         bedpe = bedpe.pair_to_bed(b=xbt, type='notospan')
 
     return bedpe
 
 
 def pair_bins(bins, outfile_all, outfile_train, max_dist_all, max_dist_train, 
-              blacklist_all, blacklist_train, bl_buffer, bgzip):
+              exclusion_list_all, exclusion_list_train, excl_buffer, bgzip):
     """
     Create pairs of bins as BEDPE from input BED
     """
@@ -62,8 +62,8 @@ def pair_bins(bins, outfile_all, outfile_train, max_dist_all, max_dist_train,
     pairs = pairs[0].cat(*pairs[1:], postmerge=False)
 
     # Filter all pairs
-    if blacklist_all is not None:
-        pairs = _pair_blacklist(pairs, blacklist_all, bl_buffer)
+    if exclusion_list_all is not None:
+        pairs = _pair_exclusion_list(pairs, exclusion_list_all, excl_buffer)
 
     # Save pairs to file
     if '.gz' in outfile_all:
@@ -78,8 +78,8 @@ def pair_bins(bins, outfile_all, outfile_train, max_dist_all, max_dist_train,
     if outfile_train is not None \
     and max_dist_train < max_dist_all:
         pairs = pairs.filter(lambda x: int(x[4]) <= int(x[2]) + max_dist_train)
-        if blacklist_train is not None:
-            pairs = _pair_blacklist(pairs, blacklist_train, bl_buffer)
+        if exclusion_list_train is not None:
+            pairs = _pair_exclusion_list(pairs, exclusion_list_train, excl_buffer)
 
     # Save training pairs to file
     if '.gz' in outfile_train:
