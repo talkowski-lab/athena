@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2019 Ryan L. Collins <rlcollins@g.harvard.edu>
+# Copyright (c) 2019- Ryan L. Collins <rlcollins@g.harvard.edu>
 # Distributed under terms of the MIT license.
 
 """
@@ -120,6 +120,24 @@ def makebins(genome, binsize, outfile_all, outfile_train, stepsize,
     utils.make_bins(genome, binsize, outfile_all, outfile_train, stepsize, 
                     exclusion_list_all, exclusion_list_train, excl_buffer, 
                     excl_cov, chroms, xchroms, bgzip)
+
+
+# Slice remote genomic data hosted on Google Cloud Storage
+@click.command(name='slice-remote')
+@click.argument('urls_tsv', type=click.Path(exists=True))
+@click.argument('regions_bed', type=click.Path(exists=True))
+@click.option('--ref-fasta', 'ref_fasta', help='Path to reference fasta file ' + \
+              '(required if any CRAM files are included in urls_tsv)')
+@click.option('--suffix', 'local_suffix', default='local_slice', help='Suffix to ' +
+              'append to the filenames of local data slices [default: local_slice]')
+@click.option('--updated-tsv', 'tsv_out', default='stdout', help='Path to ' +
+              'output tsv with updated paths to local slices of remote data ' +
+              '[default: stdout]')
+def sliceremote(urls_tsv, regions_bed, ref_fasta, local_suffix, tsv_out):
+  """
+  Localize slices of remote genomic data
+  """
+  utils.slice_remote(urls_tsv, regions_bed, ref_fasta, local_suffix, tsv_out)
 
 
 # Plot feature distributions

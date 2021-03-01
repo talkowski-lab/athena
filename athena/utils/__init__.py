@@ -6,3 +6,4 @@ from .pairbins import *
 from .countsv import *
 from .plot import *
 from .dfutils import *
+from .gcptools import *

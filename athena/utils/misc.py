@@ -25,6 +25,34 @@ def bgzip(filename):
     subprocess.run(['bgzip', '-f', filename])
 
 
+def determine_extension(path, return_extension = False):
+    """
+    Determine file extension for common genomic data formats
+    """
+
+    # Enumerate candidate suffix matches
+    suf_dict = {'cram' : ['cram'],
+                'bam' : ['bam'],
+                'vcf' : ['vcf'],
+                'compressed-vcf' : ['vcf.gz', 'vcf.bgz', 'vcf.gzip', 'vcf.bgzip'],
+                'bed' : ['bed'],
+                'compressed-bed' : ['bed.gz', 'bed.bgz', 'bed.gzip', 'bed.bgzip']}
+
+    for ftype, suffs in suf_dict.items():
+        suf_hits = [s for s in suffs if path.endswith(s)]
+        if len(suf_hits) > 0:
+            if return_extension:
+                return ftype, suf_hits[0]
+            else:
+                return ftype
+
+    # If no matches are found, return None
+    if return_extension:
+        return None, None
+    else:
+        return None
+
+
 def chromsort(contigs):
     """
     Sort a list of strings according to chromosome order

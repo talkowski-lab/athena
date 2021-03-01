@@ -30,6 +30,7 @@ utilscli.add_command(utils_commands.pairbins)
 utilscli.add_command(utils_commands.countsv)
 utilscli.add_command(utils_commands.featurehists)
 utilscli.add_command(utils_commands.transform)
+utilscli.add_command(utils_commands.sliceremote)
 
 # Mutation rate modeling functions
 @click.group(name='Mutation rate modeling')
