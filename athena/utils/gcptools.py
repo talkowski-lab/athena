@@ -12,7 +12,7 @@ Functions for interfacing with Google Cloud Storage objects within Athena
 import os
 import subprocess
 from datetime import datetime
-from athena.utils.misc import determine_extension
+from athena.utils.misc import determine_filetype
 from sys import stdout
 
 
@@ -74,7 +74,7 @@ def _parse_remote_inputs_tsv(urls_tsv, local_suffix='local_slice'):
 
             url, mdata = line.rstrip().split('\t', 1)
             basename_orig = os.path.basename(url)
-            ftype, fext = determine_extension(basename_orig, return_extension=True)
+            ftype, fext = determine_filetype(basename_orig, return_extension=True)
             sliced_ext = '{}.{}'.format(local_suffix, fext)
             basename_sliced = basename_orig[:-len(fext)] + sliced_ext
             index_path = _find_remote_index(url, ftype)

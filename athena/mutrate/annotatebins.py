@@ -15,7 +15,7 @@ import pandas as pd
 from numpy import nan
 from datetime import datetime
 from athena.mutrate import ucsc
-from athena.utils.misc import chromsort, load_snv_mus, snv_mu_from_seq, determine_extension
+from athena.utils.misc import chromsort, load_snv_mus, snv_mu_from_seq, determine_filetype
 import pyBigWig
 import itertools
 from gzip import GzipFile
@@ -45,7 +45,7 @@ def add_bedtool_track(bins, track, action):
     """
 
     if isinstance(track, str):
-        ftype = determine_extension(track)
+        ftype = determine_filetype(track)
     else:
         ftype = None
     
@@ -142,7 +142,7 @@ def add_local_track(bins, track, action, maxfloat, quiet):
     Wrapper function to add a single local track
     """
 
-    ftype = determine_extension(track)
+    ftype = determine_filetype(track)
 
     if quiet is False:
         status_msg = '[{0}] athena annotate-bins: Adding track "{1}" ' + \

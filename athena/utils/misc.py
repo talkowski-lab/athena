@@ -25,7 +25,7 @@ def bgzip(filename):
     subprocess.run(['bgzip', '-f', filename])
 
 
-def determine_extension(path, return_extension = False):
+def determine_filetype(path, return_extension = False):
     """
     Determine file extension for common genomic data formats
     """
