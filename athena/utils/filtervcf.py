@@ -30,7 +30,7 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list,
     header = invcf.header
 
     #Clean undesired INFO fields from header
-    if keep_infos is not 'ALL':
+    if keep_infos != 'ALL':
         if keep_infos is None:
             keep_infos = []
         else:
@@ -146,7 +146,7 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list,
                     continue
 
         # Clean record
-        if keep_infos is not 'ALL':
+        if keep_infos != 'ALL':
             for key in record.info.keys():
                 if key not in keep_infos:
                     record.info.pop(key)

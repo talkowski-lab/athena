@@ -15,7 +15,7 @@ import pandas as pd
 from numpy import nan
 from datetime import datetime
 from athena.mutrate import ucsc
-from athena.utils.misc import chromsort, load_snv_mus, snv_mu_from_seq
+from athena.utils.misc import chromsort, load_snv_mus, snv_mu_from_seq, determine_extension
 import pyBigWig
 import itertools
 from gzip import GzipFile
@@ -43,9 +43,21 @@ def add_bedtool_track(bins, track, action):
     """
     Annotate bins with a single BedTool
     """
+
+    if isinstance(track, str):
+        ftype = determine_extension(track)
+    else:
+        ftype = None
     
     if action == 'count':
-        bins = bins.intersect(track, c=True, wa=True)
+        if ftype in 'bam cram'.split():
+            bins.saveas()
+            cov = [f[-4] for f in bins.coverage(track, sorted=True)]
+            df = pd.read_csv(bins.fn, sep='\t', header=None, comment='#')
+            df['cov'] = cov
+            bins = pybedtools.BedTool.from_dataframe(df)
+        else:
+            bins = bins.intersect(track, c=True, wa=True)
 
     elif action == 'count-unique':
         bedtool = pybedtools.BedTool(track).sort().merge()
@@ -147,6 +159,8 @@ def add_local_track(bins, track, action, maxfloat, quiet):
     Wrapper function to add a single local track
     """
 
+    ftype = determine_extension(track)
+
     if quiet is False:
         status_msg = '[{0}] athena annotate-bins: Adding track "{1}" ' + \
                      'with action "{2}"'
@@ -157,7 +171,7 @@ def add_local_track(bins, track, action, maxfloat, quiet):
         bins = add_bedtool_track(bins, track, action)
 
     elif 'map-' in action:
-        if path.splitext(track)[1] in '.bw .bigwig .bigWig .BigWig'.split():
+        if ftype == 'bigwig':
             bins = add_bigwig_track(bins, track, action)
         else:
             bins = add_bedgraph_track(bins, track, action)

@@ -135,10 +135,10 @@ def _localize_remote_slice(url_info, regions_bed, ref_fasta=None):
         slice_method = 'tabix'
 
     if ftype == 'cram':
-        loc_cmd = 'samtools view -C -T ' + ref_fasta + ' -L {} {} > {}'
+        loc_cmd = 'samtools view -C -M -T ' + ref_fasta + ' -L {} {} > {}'
         idx_cmd = 'samtools index -c {}'
     elif ftype == 'bam':
-        loc_cmd = 'samtools view -b -L {} {} > {}'
+        loc_cmd = 'samtools view -b -M -L {} {} > {}'
         idx_cmd = 'samtools index -b {}'
     elif slice_method =='tabix':
         loc_cmd = 'tabix -h -T {} {} | bgzip -c > {}'

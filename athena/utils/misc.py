@@ -34,9 +34,10 @@ def determine_extension(path, return_extension = False):
     suf_dict = {'cram' : ['cram'],
                 'bam' : ['bam'],
                 'vcf' : ['vcf'],
-                'compressed-vcf' : ['vcf.gz', 'vcf.bgz', 'vcf.gzip', 'vcf.bgzip'],
+                'compressed-vcf' : 'vcf.gz vcf.bgz vcf.gzip vcf.bgzip'.split(),
                 'bed' : ['bed'],
-                'compressed-bed' : ['bed.gz', 'bed.bgz', 'bed.gzip', 'bed.bgzip']}
+                'compressed-bed' : 'bed.gz bed.bgz bed.gzip bed.bgzip'.split(),
+                'bigwig' : '.bw .bigwig .bigWig .BigWig'.split()}
 
     for ftype, suffs in suf_dict.items():
         suf_hits = [s for s in suffs if path.endswith(s)]
