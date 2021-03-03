@@ -265,33 +265,34 @@ def countsv(bins, sv, outfile, sv_format, comparison, min_cov, bgzip):
 # Pair bins
 @click.command(name='pair-bins')
 @click.argument('bins', type=click.Path(exists=True))
-@click.argument('outfile_all')
-@click.option('--max-dist-all', type=int, default=1000000,
-              help='Maximum distance to consider during pairing.')
-@click.option('--max-dist-training', 'max_dist_train', type=int, default=1000000,
-              help='Maximum distance to consider during pairing for training ' +
-              'bins only.')
-@click.option('-x', '--exclusion-list-all', default=None, multiple=True,
-              help='BED file of regions to exclude for all bin pairs, based on ' +
-              'pair span overlap. This may be specified multiple times.')
-@click.option('--exclusion-list-training', 'exclusion_list_train', default=None, 
-              multiple=True, help='BED file of regions to exclude for training ' +
-              'bin pairs, based on pair span overlap. This may be specified ' +
-              'multiple times.')
-@click.option('--buffer', 'excl_buffer', type=int, default=0,
+@click.argument('outfile')
+@click.option('--max-dist', type=int, default=1000000,
+              help='Maximum distance to search for candidate pairs.')
+@click.option('-x', '--exclusion-list', default=None, multiple=True,
+              help='BED file of regions to exclude based on pair span overlap. ' +
+              'This may be specified multiple times.')
+@click.option('--excl-buffer', 'excl_buffer', type=int, default=0,
               help='Pad exclusion list intervals prior to intersection. If ' +
               'multiple exclusion lists are specified, elements from each ' +
               'exclusion list will be padded separately.')
-@click.option('--training-pairs-out', 'outfile_train', default=None, 
-              help='Output BEDPE file of bin pairs for mutation rate training ' + 
-              '[default: do not output training bin pairs]')
+@click.option('--annotate-distance', 'annotate_dist', is_flag=True, default=False, 
+              help='Add a new feature corresponding to the distance between the ' +
+              'midpoints of each bin per pair.')
+@click.option('--sort-features', 'sort_features', is_flag=True, default=False, 
+              help='Report sorted feature values per pair of bins as (min, max). ' +
+              '[default: report as (left, right)]')
+@click.option('--annotate-absdiff', 'annotate_absdiff', is_flag=True, default=False, 
+              help='Add one new feature per input feature corresponding to the ' +
+              'absolute difference per feature between each bin per pair.')
+@click.option('--maxfloat', type=int, default=8, 
+              help='Maximum precision of floating-point values. [default: 8]')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output with bgzip')
-def pairbins(bins, outfile_all, outfile_train, max_dist_all, max_dist_train, 
-             exclusion_list_all, exclusion_list_train, excl_buffer, bgzip):
+def pairbins(bins, outfile, max_dist, exclusion_list, excl_buffer, annotate_dist, 
+             sort_features, annotate_absdiff, maxfloat, bgzip):
   """
   Create pairs of bins
   """
-  utils.pair_bins(bins, outfile_all, outfile_train, max_dist_all, max_dist_train, 
-                  exclusion_list_all, exclusion_list_train, excl_buffer, bgzip)
+  utils.pair_bins(bins, outfile, max_dist, exclusion_list, excl_buffer, annotate_dist,
+                  sort_features, annotate_absdiff, maxfloat, bgzip)
 

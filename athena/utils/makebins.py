@@ -12,25 +12,19 @@ Segment a reference genome into uniform, sequential bins
 import pybedtools
 from os import path
 from athena.utils.misc import bgzip as bgz
+from athena.utils.exclusionbed import load_exclusion_bts
 
 
 def _apply_exclusion_list(bins, exclusion_lists, excl_buffer, excl_cov):
-    if isinstance(exclusion_lists, tuple):
-        for bl in exclusion_lists:
-            xbt = pybedtools.BedTool(bl)
-            xbt = xbt.each(_buffer_exclusion_list, excl_buffer=excl_buffer).merge()
-            bins = bins.intersect(xbt, v=True, f=excl_cov)
-    else:
-        xbt = pybedtools.BedTool(exclusion_lists)
-        xbt = xbt.each(_buffer_exclusion_list, excl_buffer=excl_buffer).merge()
-        bins = bins.intersect(xbt, v=True, f=excl_cov)
+    """
+    Load and apply exclusion lists to bins
+    """
+
+    xbt = load_exclusion_bts(exclusion_lists, excl_buffer)
+
+    bins = bins.intersect(xbt, v=True, f=excl_cov)
+
     return bins
-
-
-def _buffer_exclusion_list(interval, excl_buffer):
-    interval.start = max([0, interval.start - excl_buffer])
-    interval.stop = interval.stop + excl_buffer
-    return interval
 
 
 def make_bins(genome, binsize, outfile_all, outfile_train, stepsize, 

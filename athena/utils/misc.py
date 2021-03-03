@@ -15,6 +15,7 @@ import pybedtools
 from os import path
 import gzip
 import csv
+import pybedtools as pbt
 
 
 def bgzip(filename):
@@ -25,7 +26,7 @@ def bgzip(filename):
     subprocess.run(['bgzip', '-f', filename])
 
 
-def determine_filetype(path, return_extension = False):
+def determine_filetype(path, return_extension=False):
     """
     Determine file extension for common genomic data formats
     """
@@ -172,4 +173,29 @@ def snv_mu_from_seq(seq, snv_mu_dict):
     mus = [snv_mu_dict.get(seq[(i-1):(i+2)], 0) for i in range(1, len(seq)-1)]
 
     return sum(mus)
+
+
+def calc_binsize(bed_path):
+    """
+    Estimates bin size from an athena BED based on the distance between the
+    start coordinates of the first two records in a BED file
+    """
+
+    starts = []
+
+    if determine_filetype(bed_path) == 'compressed-bed':
+        bfile = gzip.open(bed_path, 'rt')
+    else:
+        bfile = open(bed_path)
+
+    while len(starts) < 2:
+        line = bfile.readline().rstrip()
+        if line.startswith('#'):
+            continue
+        else:
+            starts.append(int(line.split('\t')[1]))
+
+    bfile.close()
+
+    return abs(starts[1] - starts[0])
 
