@@ -69,20 +69,24 @@ def _get_pairs(outfile, query_vals, bins_tabix, max_dist, xbt, annotate_dist,
         outfile.write('\t'.join([str(x) for x in pair_vals]) + '\n')
 
 
-def pair_bins(bins, outfile, max_dist, exclusion_list, excl_buffer, annotate_dist, 
-              sort_features, annotate_absdiff, maxfloat, bgzip, input_has_header=True):
+def pair_bins(query_bins, all_bins, outfile, max_dist, exclusion_list, excl_buffer, 
+              annotate_dist, sort_features, annotate_absdiff, maxfloat, bgzip, 
+              input_has_header=True):
     """
     Create pairs of bins from input BED
     """
 
     # Open connection to infiles & outfile
-    if determine_filetype(bins) == 'compressed-bed':
-        fin = gzip.open(bins, 'rt')
+    if determine_filetype(query_bins) == 'compressed-bed':
+        fin = gzip.open(query_bins, 'rt')
     else:
-        fin = open(bins)
+        fin = open(query_bins)
     if input_has_header:
         colnames = [k.replace('#', '') for k in fin.readline().rstrip().split('\t')]
-    bins_tabix = TabixFile(bins)
+    if all_bins is None:
+        bins_tabix = TabixFile(bins)
+    else:
+        bins_tabix = TabixFile(all_bins)
     xbt = load_exclusion_bts(exclusion_list, excl_buffer)
 
     # Open connection to output file

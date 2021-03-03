@@ -266,6 +266,10 @@ def countsv(bins, sv, outfile, sv_format, comparison, min_cov, bgzip):
 @click.command(name='pair-bins')
 @click.argument('bins', type=click.Path(exists=True))
 @click.argument('outfile')
+@click.option('--bin-superset', 'all_bins', help='Master BED file of all bins to ' +
+              'be considered as potential pairs. This input is only useful ' +
+              'if the BINS positional argument does not contain all bins ' +
+              'for a given chromosome.')
 @click.option('--max-dist', type=int, default=1000000,
               help='Maximum distance to search for candidate pairs.')
 @click.option('-x', '--exclusion-list', default=None, multiple=True,
@@ -288,11 +292,11 @@ def countsv(bins, sv, outfile, sv_format, comparison, min_cov, bgzip):
               help='Maximum precision of floating-point values. [default: 8]')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output with bgzip')
-def pairbins(bins, outfile, max_dist, exclusion_list, excl_buffer, annotate_dist, 
-             sort_features, annotate_absdiff, maxfloat, bgzip):
+def pairbins(bins, all_bins, outfile, max_dist, exclusion_list, excl_buffer, 
+             annotate_dist, sort_features, annotate_absdiff, maxfloat, bgzip):
   """
   Create pairs of bins
   """
-  utils.pair_bins(bins, outfile, max_dist, exclusion_list, excl_buffer, annotate_dist,
-                  sort_features, annotate_absdiff, maxfloat, bgzip)
+  utils.pair_bins(bins, all_bins, outfile, max_dist, exclusion_list, excl_buffer, 
+                  annotate_dist, sort_features, annotate_absdiff, maxfloat, bgzip)
 
