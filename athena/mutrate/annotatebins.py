@@ -12,12 +12,12 @@ Annotate a binned genome
 import csv
 import pybedtools as pbt
 import pandas as pd
-from numpy import nan
 from datetime import datetime
 from athena.mutrate import ucsc
 from athena.utils.misc import chromsort, load_snv_mus, snv_mu_from_seq, determine_filetype
+from athena.utils.nuc import get_seqs_from_bt
+from athena.utils.dfutils import float_cleanup
 import pyBigWig
-import itertools
 from gzip import GzipFile
 from os import path
 
@@ -126,17 +126,6 @@ def add_bedgraph_track(bins, track, action):
     return values
 
 
-def float_cleanup(bins_df, maxfloat, start_idx):
-    """
-    Clean up long floats in non-coordinate columns of bins
-    """
-
-    bins_df.iloc[:, start_idx:] = \
-        bins_df.iloc[:, start_idx:].replace('.',nan).apply(pd.to_numeric).round(maxfloat)
-
-    return bins_df
-
-
 def add_local_track(bins, track, action, maxfloat, quiet):
     """
     Wrapper function to add a single local track
@@ -217,8 +206,9 @@ def add_nuc_content(bins, fasta, maxfloat):
     Extract GC content (as list) for all bins from a reference fasta
     """
     
-    if path.splitext(fasta)[1] in '.bgz .gz .gzip'.split():
+    if 'compressed' in determine_filetype(fasta):
         fasta = GzipFile(fasta)
+    
     pct_gc = [float(f[4]) for f in bins.cut(range(3)).nucleotide_content(fi=fasta)]
 
     return pct_gc
@@ -241,23 +231,13 @@ def add_snv_mu(bins, fasta, snv_mus, maxfloat):
 
     snv_mu_dict = load_snv_mus(snv_mus)
 
-    if path.splitext(fasta)[1] in '.bgz .gz .gzip'.split():
+    if 'compressed' in determine_filetype(fasta):
         fasta = GzipFile(fasta)
 
-    mubins_str = ''
-    fseqs = buffbins.sequence(fasta).seqfn
-    with open(fseqs) as fin:
-        for seqheader, seq in itertools.zip_longest(*[fin]*2):
-            coords = seqheader.rstrip().replace('>', '').replace(':', '\t')\
-                     .replace('-', '\t').split('\t')
-            coords_fmt = '{}\t{}\t{}'.format(coords[0], int(coords[1]) + 1, 
-                                             int(coords[2]) - 1)
-            mu = snv_mu_from_seq(seq.rstrip(), snv_mu_dict)
-            newbin = '\t'.join([coords_fmt, str(mu)])
-            mubins_str = '\n'.join([mubins_str, newbin])
-    mubins = pbt.BedTool(mubins_str, from_string=True)
-
-    values = [float(f[-1]) for f in mubins]
+    values = []
+    for seq in get_seqs_from_bt(buffbins, fasta):
+        mu = snv_mu_from_seq(seq.rstrip(), snv_mu_dict)
+        values.append(mu)
 
     return values
 
@@ -285,7 +265,8 @@ def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref,
 
     # Load bins. Note: must read contents from file due to odd utf-8 decoding 
     # behavior for bgzipped BED files
-    if path.splitext(bins)[1] in '.bgz .gz .gzip'.split():
+    ftype = determine_filetype(bins)
+    if 'compressed' in ftype:
         bins = ''.join(s.decode('utf-8') for s in GzipFile(bins).readlines())
     else:
         bins = open(bins, 'r').readlines()
@@ -369,7 +350,8 @@ def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref,
     
 
     # Clean up long floats
-    bins = float_cleanup(bins_df, maxfloat, start_idx=n_cols_old)
+    bins_df = float_cleanup(bins_df, maxfloat, start_idx=n_cols_old)
+
 
     # Return bins as pbt.BedTool
     return pbt.BedTool.from_dataframe(bins_df)

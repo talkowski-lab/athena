@@ -178,6 +178,17 @@ def _boxcox_trans(df, column, strict=False):
         return df
 
 
+def float_cleanup(df, maxfloat, start_idx):
+    """
+    Clean up long floats in a subset of columns of bins
+    """
+
+    df.iloc[:, start_idx:] = \
+        df.iloc[:, start_idx:].replace('.', np.nan).apply(pd.to_numeric).round(maxfloat)
+
+    return df
+
+
 def load_feature_df(tsv, first_column=3, log_transform=None, sqrt_transform=None,
                     exp_transform=None, square_transform=None, boxcox_transform=None, 
                     fill_missing=None, warn=False, strict=False):

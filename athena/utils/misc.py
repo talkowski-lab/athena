@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2019 Ryan L. Collins <rlcollins@g.harvard.edu>
+# Copyright (c) 2019- Ryan L. Collins <rlcollins@g.harvard.edu>
 # Distributed under terms of the MIT license.
 
 """
@@ -38,7 +38,9 @@ def determine_filetype(path, return_extension=False):
                 'compressed-vcf' : 'vcf.gz vcf.bgz vcf.gzip vcf.bgzip'.split(),
                 'bed' : ['bed'],
                 'compressed-bed' : 'bed.gz bed.bgz bed.gzip bed.bgzip'.split(),
-                'bigwig' : '.bw .bigwig .bigWig .BigWig'.split()}
+                'bigwig' : '.bw .bigwig .bigWig .BigWig'.split(),
+                'fasta' : '.fa .fasta'.split(),
+                'compressed-fasta' : '.fa.gz .fa.gzip .fasta.gz .fasta.gzip'.split()}
 
     for ftype, suffs in suf_dict.items():
         suf_hits = [s for s in suffs if path.endswith(s)]
@@ -175,27 +177,35 @@ def snv_mu_from_seq(seq, snv_mu_dict):
     return sum(mus)
 
 
-def calc_binsize(bed_path):
+def calc_binsize(bed_path, sample_n_starts=20):
     """
-    Estimates bin size from an athena BED based on the distance between the
-    start coordinates of the first two records in a BED file
+    Estimates bin size from an athena BED based on the minimal distance between the
+    start coordinates of the first $sample_starts records with different start 
+    positions in a BED file (this assumes the BED file is coordinate-sorted)
     """
 
-    starts = []
+    starts = set()
 
     if determine_filetype(bed_path) == 'compressed-bed':
         bfile = gzip.open(bed_path, 'rt')
     else:
         bfile = open(bed_path)
 
-    while len(starts) < 2:
+    while len(starts) < sample_n_starts:
         line = bfile.readline().rstrip()
         if line.startswith('#'):
             continue
         else:
-            starts.append(int(line.split('\t')[1]))
+            starts.add(int(line.split('\t')[1]))
 
     bfile.close()
 
-    return abs(starts[1] - starts[0])
+    starts = list(starts)
+
+    dists = set()
+    for i in range(len(starts)):
+        for k in range(i+1, len(starts)):
+            dists.add(abs(starts[k] - starts[i]))
+
+    return min(list(dists))
 

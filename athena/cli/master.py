@@ -41,6 +41,7 @@ def mutratecli():
     pass
 
 mutratecli.add_command(mutrate_commands.annotatebins)
+mutratecli.add_command(mutrate_commands.annotatepairs)
 mutratecli.add_command(mutrate_commands.annodecomp)
 
 # Dosage sensitivity modeling functions

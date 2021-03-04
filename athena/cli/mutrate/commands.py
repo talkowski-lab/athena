@@ -154,6 +154,55 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
         bgz(outfile)
 
 
+@click.command(name='annotate-pairs')
+@click.argument('pairs', type=click.Path(exists=True))
+@click.argument('outfile')
+@click.option('--include-chroms', 'chroms', default=None, 
+              help='Chromosomes to include (comma-separated) ' + 
+              '[default: include all chromosomes]')
+@click.option('-R', '--ranges', default=None,
+              help='BED file containing range(s) for pair restriction.')
+@click.option('--fasta', default=None, help='Reference genome fasta file. If ' +
+              'supplied, will annotate all bins with nucleotide content. Will ' +
+              'also generate fasta index if not already available locally.')
+@click.option('--binsize', type=int, default=None, help='Size of bins. [default: ' +
+              'infer from spacing of coordinates of pairs]')
+@click.option('--binsize', type=int, default=None, help='Size of bins. [default: ' +
+              'infer from spacing of coordinates of pairs]')
+@click.option('--homology-cutoff', 'homology_cutoffs', type=int, multiple=True, 
+              help='Custom cutoffs for minimum pairwise sequence identity when ' +
+              'calculating homology-based features. Requires --fasta. May be specified ' +
+              'multiple times. [default: 1.0, 0.9, 0.7, 0.5]')
+@click.option('--maxfloat', type=int, default=8, 
+              help='Maximum precision of floating-point values. [default: 8]')
+@click.option('-z', '--bgzip', is_flag=True, default=False, 
+              help='Compress output with bgzip.')
+@click.option('-q', '--quiet', is_flag=True, default=False, 
+              help='Silence progress messages.')
+def annotatepairs(pairs, chroms, ranges, outfile, fasta, binsize, homology_cutoffs, 
+                  maxfloat, bgzip, quiet):
+    """
+    Annotate pairs
+    """
+
+    # Sanitize inputs
+    if len(homology_cutoffs) > 0:
+      homology_cutoffs = list(homology_cutoffs)
+    else:
+      homology_cutoffs = [1.0, 0.9, 0.7, 0.5]
+
+    # TODO: Handle header reformatting
+
+    # Annotate pairs
+    newpairs = mutrate.annotate_pairs(pairs, chroms, ranges, fasta, binsize, 
+                                      homology_cutoffs, maxfloat, quiet)
+
+    # Save annotated pairs
+
+    # Bgzip pairs, if optioned
+    import pdb; pdb.set_trace()
+
+
 @click.command(name='eigen-bins')
 @click.argument('bins', type=click.Path(exists=True))
 @click.argument('outfile')
@@ -185,8 +234,8 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
               'impute on a per-column basis. [0]')
 @click.option('--skip-columns', type=int, default=3,
               help='Skip first N columns of input bins. [3]')
-@click.option('--maxfloat', type=int, default=10, 
-              help='Maximum precision of floating-point values.')
+@click.option('--maxfloat', type=int, default=8, 
+              help='Maximum precision of floating-point values. [default: 8]')
 @click.option('--max-components', 'max_pcs', type=int, default=100, 
               help='Maximum number of components to calculate.')
 @click.option('-s', '--stats', default=None,
