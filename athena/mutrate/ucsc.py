@@ -146,7 +146,8 @@ def format_conditions(conditions):
 
 
 def compose_query(table, db, oformat, query_ranges=None, 
-                  columns=default_columns, conditions=None):
+                  columns=default_columns, conditions=None,
+                  print_query=False):
     """
     Format UCSC query dependent on desired output format
     """
@@ -169,6 +170,10 @@ def compose_query(table, db, oformat, query_ranges=None,
 
     else:
         query = 'SELECT * from `{0}`'.format(table)
+
+    # Useful for debugging purposes
+    if print_query:
+        print(query)
 
     return query
 
@@ -202,6 +207,9 @@ def query_ucsc(bins, track, columns, conditions, db, action, query_ranges):
     Master function for handling UCSC queries
     """
 
+    elig_bed_actions = 'count count-unique count-pairs any-overlap ' + \
+                       'any-pairwise-overlap coverage pairwise-coverage'
+
     # Get raw data
     if 'map-' in action:
         if columns is default_columns:
@@ -213,7 +221,7 @@ def query_ucsc(bins, track, columns, conditions, db, action, query_ranges):
             if 'chr' not in bins[0].chrom:
                 result = result.each(_check_grc_compliance)
 
-    elif action in 'count count-unique coverage'.split():
+    elif action in elig_bed_actions.split():
         result = query_table(track, db, 'bed', query_ranges,
                              columns, conditions)
         # Coerce to GRC nomenclature, if necessary

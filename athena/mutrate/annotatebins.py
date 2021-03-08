@@ -63,7 +63,7 @@ def add_bedtool_track(bins, track, action):
         values = [float(f[-1]) for f in bins.coverage(track)]
 
     elif action == 'any-overlap':
-        values = [min([0, int(f[-1])]) for f \
+        values = [min([1, int(f[-1])]) for f \
                   in bins.intersect(track, c=True, wa=True)]
 
     else:
@@ -126,7 +126,7 @@ def add_bedgraph_track(bins, track, action):
     return values
 
 
-def add_local_track(bins, track, action, maxfloat, quiet):
+def add_local_track(bins, track, action, quiet):
     """
     Wrapper function to add a single local track
     """
@@ -140,18 +140,18 @@ def add_local_track(bins, track, action, maxfloat, quiet):
                                 track, action))
 
     if action in 'count count-unique coverage any-overlap'.split():
-        bins = add_bedtool_track(bins, track, action)
+        values = add_bedtool_track(bins, track, action)
 
     elif 'map-' in action:
         if ftype == 'bigwig':
-            bins = add_bigwig_track(bins, track, action)
+            values = add_bigwig_track(bins, track, action)
         else:
-            bins = add_bedgraph_track(bins, track, action)
+            values = add_bedgraph_track(bins, track, action)
 
-    return bins
+    return values
 
 
-def add_ucsc_track(bins, db, track, action, query_regions, maxfloat, ucsc_ref, 
+def add_ucsc_track(bins, db, track, action, query_regions, ucsc_ref, 
                    chromsplit, quiet):
     """
     Wrapper function to add a single ucsc track
@@ -166,8 +166,7 @@ def add_ucsc_track(bins, db, track, action, query_regions, maxfloat, ucsc_ref,
         print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
                                 table, action))
         if chromsplit:
-            contigs = chromsort(list(set([f.chrom for f in bins])))
-            contigs = ['chr' + k for k in contigs]
+            contigs = chromsort(list(set([f.chrom for f in bins.each(ucsc._check_hg_compliance)])))
             sub_ures = [ucsc.subquery_ucsc(bins, table, columns, conditions, db, 
                                       action, query_regions, k) for k in contigs]
             if isinstance(sub_ures[0], pbt.BedTool):
@@ -301,7 +300,7 @@ def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref,
         for track in tracks:
             action = actions[track_counter]
             bins_df['newtrack_{}'.format(track_counter)] = \
-                add_local_track(bins_bt, track, action, maxfloat, quiet)
+                add_local_track(bins_bt, track, action, quiet)
             track_counter += 1
 
 
@@ -320,7 +319,7 @@ def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref,
             action = actions[track_counter]
             bins_df['newtrack_{}'.format(track_counter)] = \
                 add_ucsc_track(bins_bt, db, track, action, query_regions, 
-                                  maxfloat, ucsc_ref, ucsc_chromsplit, quiet)
+                               ucsc_ref, ucsc_chromsplit, quiet)
             track_counter += 1
 
         # Close UCSC connection

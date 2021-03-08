@@ -143,6 +143,21 @@ def vcf2bed(vcf, breakpoints=False):
     return bed
 
 
+def make_default_bed_header(n_extra_cols):
+    """
+    Create default BED3+ header line for files lacking informative headers
+    """
+
+    header = '#chr\tstart\tend'
+
+    if n_extra_cols > 0:
+        default_colname = 'user_col_{0}'
+        default_cols = [default_colname.format(str(i+1)) for i in range(n_extra_cols)]
+        header = header + '\t' + '\t'.join(default_cols)
+
+    return header
+
+
 def load_snv_mus(snv_mus):
     """
     Collapse all possible SNV mutation rates per trinucleotide context
