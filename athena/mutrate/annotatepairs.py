@@ -53,23 +53,32 @@ def _pairs_bed_to_bedpe(pairs_bt, binsize):
     return pbt.BedTool(bedpe, from_string=True)
 
 
-def _split_pairtopair_by_binpairs(track_hits, pairs_bedpe_bt):
+def _split_pairtopair_by_binpairs(track_hits, pairs_bedpe_bt, counts_only=False):
     """
     Partition a single pbt.BedTool into a list of pbt.BedTool objects (one per original bin-pair)
     """
 
-    split_res = {'_'.join([pair.chrom, str(pair.start), str(pair[5])]) : pbt.BedTool('', from_string=True) 
+    if counts_only:
+        starting_value = 0
+    else:
+        starting_value = ''
+    split_res = {'_'.join([pair.chrom, str(pair.start), str(pair[5])]) : starting_value 
                  for pair in pairs_bedpe_bt}
 
     for hit in track_hits:
         track_name = '_'.join([hit.chrom, str(hit.start), str(hit[5])])
-        hit_element = pbt.BedTool('\t'.join(hit[6:12]), from_string=True)
-        split_res[track_name] = split_res[track_name].cat(hit_element, postmerge=False)
+        if counts_only:
+            split_res[track_name] += 1
+        else:
+            split_res[track_name] += '\t'.join(hit[6:12]) + '\n'
+
+    if not counts_only:
+        split_res = {tn : pbt.BedTool(h, from_string=True) for tn, h in split_res.items()}
 
     return split_res
 
 
-def _bam_to_bedpe(bam_path, query_regions=None):
+def _bam_to_bedpe(bam_path, query_regions=None, clean_nsorted_copy=True):
     """
     Convert BAM/CRAM records to BEDPE
     """
@@ -80,7 +89,9 @@ def _bam_to_bedpe(bam_path, query_regions=None):
 
     bedpe = pbt.BedTool(sorted_path).bam_to_bed(bedpe=True).sort().cut(range(6)).saveas()
 
-    system('rm -rf ' + sorted_path)
+    # Clean up namesorted BAM/CRAM because it's no longer needed outside of this function
+    if clean_nsorted_copy:
+        system('rm -rf ' + sorted_path)
     
     return bedpe
 
@@ -94,13 +105,18 @@ def add_pairwise_bedtool_track(pairs_bedpe_bt, track, action, binsize):
     if action in 'count-pairs pairwise-coverage any-pairwise-overlap'.split():
 
         track_hits = pairs_bedpe_bt.pairtopair(b=track, type='both')
-        hits_per_bin = _split_pairtopair_by_binpairs(track_hits, pairs_bedpe_bt)
+        if action in 'count-pairs any-pairwise-overlap'.split():
+            counts_only = True
+        else:
+            counts_only = False
+        hits_per_bin = _split_pairtopair_by_binpairs(track_hits, pairs_bedpe_bt, 
+                                                         counts_only=counts_only)
 
         if action == 'count-pairs':
-            values = [bt.count() for bt in hits_per_bin.values()]
+            values = list(hits_per_bin.values())
 
         elif action == 'any-pairwise-overlap':
-            values = [min([1, bt.count()]) for bt in hits_per_bin.values()]
+            values = [min([1, k]) for k in hits_per_bin.values()]
 
         elif action == 'pairwise-coverage':
             values = []
