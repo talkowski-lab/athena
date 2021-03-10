@@ -209,41 +209,33 @@ def add_pairwise_ucsc_track(pairs_bedpe_bt, db, track, action, query_regions,
     return values
 
 
-def add_homology(pairs_bt, fasta, binsize, homology_cutoffs=[1.0, 0.9, 0.7, 0.5]):
+def add_homology(pairs_bt, fasta, binsize, identity=1.0, reverse_seq2=False):
     """
     Compute homology features for all pairs from a reference fasta
     """
 
-    # DEV NOTE: need to find a way to make this computationally efficient for
-    # large bins. Currently takes >5 second per pair for even a single basic homology
-    # calculation with biopython, which won't scale
+    values = []
 
-    pass
+    # Process pairs in serial
+    for pair in pairs_bt:
 
-    # # Process pairs in serial
-    # for pair in pairs_bt:
+        # Only keep pairs representing distinct bins
+        if pair.length > binsize:
 
-    #     # Only keep pairs representing distinct bins
-    #     if pair.length > binsize:
+            # Get nucleotide sequences corresponding to both bins in the pair
+            bins_bt = _split_pairs(pair, binsize)
+            seql, seqr = nuc.get_seqs_from_bt(bins_bt, fasta)
 
-    #         # Get nucleotide sequences corresponding to both bins in the pair
-    #         bins_bt = _split_pairs(pair, binsize)
-    #         seql, seqr = nuc.get_seqs_from_bt(bins_bt, fasta)
+            if reverse_seq2:
+                seqr = seqr[::-1]
 
-    #         # print(nuc.sample_kmer_identity(seql, seqr))
+            longest = nuc.longest_subseq_min_identity(seql, seqr, identity)
+            values.append(longest)
 
-    #         # Compute strict (gapless) pairwise identity between left and right bins
-    #         # print(nuc.pairwise_identity(seql, seqr))
-    #         # # Get longest streches of sequences at varying levels of homology
-    #         # fwd_bp = [nuc.longest_subseq_min_identity(seql, seqr, i) for i in homology_cutoffs]
-    #         # rev_bp = [nuc.longest_subseq_min_identity(seql, seqr[::-1], i) for i in homology_cutoffs]
-    #         # import pdb; pdb.set_trace()
+        else:
+            values.append(nan)
 
-    #     # TODO: add case handling for overlapping bins in pair
-    #     else:
-    #         pass
-
-    # import pdb; pdb.set_trace()
+    return values
 
 
 def annotate_pairs(pairs, chroms, ranges, tracks, ucsc_tracks, actions, track_names, 
@@ -329,17 +321,20 @@ def annotate_pairs(pairs, chroms, ranges, tracks, ucsc_tracks, actions, track_na
         db.close()
 
 
-    # DEV NOTE/TODO: currently not implemented. See note for add_homology() above
     # Annotate pairs based on nucleotide content, if optioned
-    # if fasta is not None:
+    if fasta is not None:
 
-    #     if quiet is False:
-    #         status_msg = '[{0}] athena annotate-pairs: Adding sequence homology ' + \
-    #                      'features from reference fasta "{1}".'
-    #         print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
-    #                                 fasta))
+        if quiet is False:
+            status_msg = '[{0}] athena annotate-pairs: Adding sequence homology ' + \
+                         'features from reference fasta "{1}".'
+            print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
+                                    fasta))
 
-    #     add_homology(pairs_bt, fasta, binsize, homology_cutoffs)
+        for identity in homology_cutoffs:
+            for rev in True, False:
+                pairs_df['newtrack_{}'.format(track_counter)] = \
+                    add_homology(pairs_bt, fasta, binsize, identity, rev)
+                track_counter += 1
     
 
     # Clean up long floats

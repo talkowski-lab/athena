@@ -195,10 +195,10 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, actio
               'also generate fasta index if not already available locally.')
 @click.option('--binsize', type=int, default=None, help='Size of bins. [default: ' +
               'infer from spacing of coordinates of pairs]')
-@click.option('--homology-cutoff', 'homology_cutoffs', type=int, multiple=True, 
+@click.option('--homology-cutoff', 'homology_cutoffs', type=float, multiple=True, 
               help='Custom cutoffs for minimum pairwise sequence identity when ' +
               'calculating homology-based features. Requires --fasta. May be specified ' +
-              'multiple times. [default: 1.0, 0.9, 0.7, 0.5]')
+              'multiple times. [default: 1.0, 0.9]')
 @click.option('--no-ucsc-chromsplit', is_flag=True, default=False, 
               help='Disable serial per-chromosome queries for UCSC tracks. May ' + 
               'improve annotation speed. Not recommended unless input bin file ' +
@@ -224,7 +224,7 @@ def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions,
     if len(homology_cutoffs) > 0:
       homology_cutoffs = list(homology_cutoffs)
     else:
-      homology_cutoffs = [1.0, 0.9, 0.7, 0.5]
+      homology_cutoffs = [1.0, 0.9]
 
     # Parse file with lists of tracks (if provided) and add to track lists
     if track_list is not None:
@@ -259,7 +259,15 @@ def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions,
       print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
       n_extra_cols = len(header.split('\t')) - 3
       header = make_default_bed_header(n_extra_cols)
-    newheader = header + '\t' + '\t'.join(list(track_names))
+    if len(track_names) > 0:
+      newheader = header + '\t' + '\t'.join(list(track_names))
+    else:
+      newheader = header
+    if fasta is not None:
+      for k in homology_cutoffs:
+        for direction in 'fwd rev'.split():
+          newheader += '\t' + 'longest_{}_kmer_{}pct_identity'.format(direction, int(round(100 * k)))
+
 
     # Annotate pairs
     newpairs = mutrate.annotate_pairs(pairs, chroms, ranges, tracks, ucsc_tracks, 
