@@ -198,7 +198,7 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, actio
 @click.option('--homology-cutoff', 'homology_cutoffs', type=float, multiple=True, 
               help='Custom cutoffs for minimum pairwise sequence identity when ' +
               'calculating homology-based features. Requires --fasta. May be specified ' +
-              'multiple times. [default: 1.0, 0.9]')
+              'multiple times. [default: 1.0]')
 @click.option('--no-ucsc-chromsplit', is_flag=True, default=False, 
               help='Disable serial per-chromosome queries for UCSC tracks. May ' + 
               'improve annotation speed. Not recommended unless input bin file ' +
@@ -224,7 +224,7 @@ def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions,
     if len(homology_cutoffs) > 0:
       homology_cutoffs = list(homology_cutoffs)
     else:
-      homology_cutoffs = [1.0, 0.9]
+      homology_cutoffs = [1.0]
 
     # Parse file with lists of tracks (if provided) and add to track lists
     if track_list is not None:
