@@ -286,11 +286,18 @@ def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions,
 
 @click.command(name='eigen-bins')
 @click.argument('bins', type=click.Path(exists=True))
-@click.argument('outfile')
+@click.option('-o', '--decomped-bins-outfile', 'bins_outfile', 
+                help='Output file for bins with decomposed annotations.')
+@click.option('-P', '--parameters-outfile', help='Output .pickle for learned ' +
+                'transformation parameters. Useful to apply transformation to ' +
+                'additional BED files not included in training.')
+@click.option('--precomputed-parameters', 'precomp_model', help='Optional .pickle ' +
+              'input to import precomputed transformations, scaling, and covariance ' +
+              'matrix from a previous call of athena eigen-bins to apply to a new ' +
+              'dataset. Will override any command-line arguments that conflict with ' +
+              'the precomputed parameters.')
 @click.option('-e', '--eigenfeatures', 'components', type=int, default=10,
               help='Number of principal components to return.')
-@click.option('-I', '--ICA', 'ica', is_flag=True, default=False,
-              help='Perform ICA instead of PCA. In development. [default: PCA]')
 @click.option('--min-variance', type=float, default=None,
               help='Optional method for specifying number of components to return. ' + 
               'Specify minimum proportion of variance to explain.')
@@ -309,6 +316,8 @@ def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions,
 @click.option('--boxcox-transform', multiple=True, help='List of column names to ' +
               'be Box-Cox power-transformed prior to decomposition. Note that ' + 
               'the exact transformation is applied to x+max(x/1000).')
+@click.option('--whiten', is_flag=True, default=False,
+              help='"Whiten" eigenfeatures with standard normalization.')
 @click.option('--fill-missing', type=str, default='0',
               help='Behavior for filling missing values. Can specify numeric ' + 
               'value to fill all missing cells, or "mean"/"median" to ' +
@@ -325,22 +334,37 @@ def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions,
               'use when labeling eigenfeatures.')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output BED with bgzip.')
-def annodecomp(bins, outfile, ica, components, min_variance, trans_tsv, log_transform, 
-               sqrt_transform, exp_transform, square_transform, boxcox_transform,
-               fill_missing, skip_columns, maxfloat, max_pcs, stats, prefix, bgzip):
+def annodecomp(bins, bins_outfile, parameters_outfile, precomp_model, components, 
+               min_variance, trans_tsv, log_transform, sqrt_transform, exp_transform, 
+               square_transform, boxcox_transform, whiten, fill_missing, skip_columns, 
+               maxfloat, max_pcs, stats, prefix, bgzip):
     """
     Eigendecomposition of annotations
     """
 
-    if trans_tsv is not None:
-      trans = dfutils._load_transformations(trans_tsv)
-      log_transform = trans.get('log', [])
-      sqrt_transform = trans.get('sqrt', [])
-      exp_transform = trans.get('exp', [])
-      square_transform = trans.get('square', [])
-      boxcox_transform = trans.get('boxcox', [])
+    # Check that either -o or -t options are provided
+    if bins_outfile is None and parameters_outfile is None:
+      from os import exit
+      exit('INPUT ERROR: must specify at least one of -o or -P')
 
-    mutrate.decompose_bins(bins, outfile, ica, components, min_variance, log_transform, 
-                           sqrt_transform, exp_transform, square_transform, 
-                           boxcox_transform, fill_missing, skip_columns, maxfloat, 
-                           max_pcs, stats, prefix, bgzip)
+    # Consolidate all variable transformations into a single dictionary
+    # This is necessary for including transformations when pickling trained models
+    if trans_tsv is not None:
+      trans_dict = dfutils._load_transformations(trans_tsv)
+    else:
+      trans_dict = {t : [] for t in 'log sqrt exp square boxcox'.split()}
+    for f in log_transform:
+      trans_dict['log'].append(f)
+    for f in sqrt_transform:
+      trans_dict['sqrt'].append(f)
+    for f in exp_transform:
+      trans_dict['exp'].append(f)
+    for f in square_transform:
+      trans_dict['square'].append(f)
+    for f in boxcox_transform:
+      trans_dict['boxcox'].append(f)
+
+    # Run feature decomposition
+    mutrate.decompose_bins(bins, bins_outfile, parameters_outfile, precomp_model, 
+                           components, min_variance, trans_dict, whiten, fill_missing, 
+                           skip_columns, maxfloat, max_pcs, stats, prefix, bgzip)

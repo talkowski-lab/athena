@@ -39,25 +39,35 @@ def _load_transformations(trans_tsv):
     return all_trans
 
 
-def _clean_missing_vals(df, fill_missing):
+def _clean_missing_vals(df, fill_missing, return_fills=False):
     """
     Handle missing annotation values
     """
     df = df.replace('.', np.nan)
     df = df.apply(pd.to_numeric, errors='coerce')
+    df_fills = None
     if fill_missing is not None:
-        if str(fill_missing).isdigit():
+        if isinstance(fill_missing, dict):
+            df = df.fillna(fill_missing)
+            df_fills = fill_missing
+        elif str(fill_missing).isdigit():
             df = df.fillna(value=fill_missing)
+            df_fills = {k : fill_missing for k in df.columns}
         elif fill_missing == 'mean':
-            df = df.fillna(df.mean())
+            df_fills = df.mean().to_dict()
+            df = df.fillna(df_fills)
         elif fill_missing == 'median':
-            df = df.fillna(df.median())
+            df_fills = df.median().to_dict()
+            df = df.fillna(df_fills)
         else:
             from sys import exit
             err = 'ERROR: "{0}" not a recognized specification for --fill-missing'
             exit(err.format(fill_missing))
 
-    return df
+    if return_fills:
+        return df, df_fills
+    else:
+        return df
 
 
 def _log_trans(df, column, strict=False):
@@ -191,7 +201,7 @@ def float_cleanup(df, maxfloat, start_idx):
 
 def load_feature_df(tsv, first_column=3, log_transform=None, sqrt_transform=None,
                     exp_transform=None, square_transform=None, boxcox_transform=None, 
-                    fill_missing=None, warn=False, strict=False):
+                    fill_missing=None, return_fills=False, warn=False, strict=False):
     """
     Wrapper function to load and sanitize features from a tsv input
     """
@@ -205,7 +215,7 @@ def load_feature_df(tsv, first_column=3, log_transform=None, sqrt_transform=None
     df = pd.read_csv(tsv, sep='\t', usecols=range(first_column, ncols))
 
     # Clean missing values
-    df = _clean_missing_vals(df, fill_missing)
+    df, df_fills = _clean_missing_vals(df, fill_missing, return_fills=True)
 
     # Transform any columns as optioned
     if log_transform is not None:
@@ -228,7 +238,10 @@ def load_feature_df(tsv, first_column=3, log_transform=None, sqrt_transform=None
         for column in boxcox_transform:
             df = _boxcox_trans(df, column, strict)
 
-    return df
+    if return_fills:
+        return df, df_fills
+    else:
+        return df
 
 
 def transform_df(bed_in, bed_out, first_column=3, log_transform=None, 
