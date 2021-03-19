@@ -18,7 +18,7 @@ from athena.utils.misc import bgzip as bgz
 from athena.utils.misc import hwe_chisq
 
 
-def filter_vcf(vcf, out, chroms, xchroms, svtypes, blacklist, 
+def filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list, 
                minAF, maxAF, minAC, maxAC, minAN, filters, 
                minQUAL, maxQUAL, HWE, af_field, keep_infos, bgzip):
 
@@ -30,7 +30,7 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, blacklist,
     header = invcf.header
 
     #Clean undesired INFO fields from header
-    if keep_infos is not 'ALL':
+    if keep_infos != 'ALL':
         if keep_infos is None:
             keep_infos = []
         else:
@@ -65,9 +65,9 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, blacklist,
             svtypes = svtypes.split(',')
     if filters is not None:
         filters = filters.split(',')
-    if blacklist is not None:
-        bl = pybedtools.BedTool(blacklist)
-        # bl = pd.read_csv(blacklist, sep='\t', names='chrom start end'.split())
+    if exclusion_list is not None:
+        bl = pybedtools.BedTool(exclusion_list)
+        # bl = pd.read_csv(exclusion_list, sep='\t', names='chrom start end'.split())
 
     # Raise warning if AF or AC are missing from VCF
     for key in [af_field, 'AC']:
@@ -146,7 +146,7 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, blacklist,
                     continue
 
         # Clean record
-        if keep_infos is not 'ALL':
+        if keep_infos != 'ALL':
             for key in record.info.keys():
                 if key not in keep_infos:
                     record.info.pop(key)
@@ -156,8 +156,8 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, blacklist,
 
     outvcf.close()
 
-    # Filter remaining records against blacklist
-    if blacklist is not None:
+    # Filter remaining records against exclusion_list
+    if exclusion_list is not None:
         prebl_vcf = pybedtools.BedTool(out)
         prebl_vcf.intersect(bl, header=True, v=True).saveas(out)
 

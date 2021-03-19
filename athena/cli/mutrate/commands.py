@@ -12,6 +12,7 @@
 import click
 from athena import mutrate
 from athena.utils.misc import bgzip as bgz
+from athena.utils.misc import determine_filetype, make_default_bed_header
 from os import path
 from gzip import GzipFile
 from datetime import datetime
@@ -71,14 +72,14 @@ import athena.utils.dfutils as dfutils
               help='Disable serial per-chromosome queries for UCSC tracks. May ' + 
               'improve annotation speed. Not recommended unless input bin file ' +
               'is small.')
-@click.option('--maxfloat', type=int, default=10, 
-              help='Maximum precision of floating-point values.')
+@click.option('--maxfloat', type=int, default=8, 
+              help='Maximum precision of floating-point values. [default: 8]')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output with bgzip.')
 @click.option('-q', '--quiet', is_flag=True, default=False, 
               help='Silence progress messages.')
-def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_ref, 
-                 actions, track_names, track_list, ucsc_list, fasta, snv_mus,
+def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, actions, 
+                 track_names, track_list, ucsc_list, ucsc_ref, fasta, snv_mus,
                  no_ucsc_chromsplit, maxfloat, bgzip, quiet):
     """
     Annotate bins
@@ -118,7 +119,7 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
         err = 'INPUT ERROR: Number of supplied track names ({0}) does not ' + \
               'match number of tracks ({1}).'
         exit(err.format(len(track_names), n_tracks))
-    if path.splitext(bins)[1] in '.bgz .gz .gzip'.split():
+    if 'compressed' in determine_filetype(bins):
         header = GzipFile(bins).readline().decode('utf-8').rstrip()
     else:
         header = open(bins, 'r').readline().rstrip()
@@ -127,12 +128,8 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
       status_msg = '[{0}] athena annotate-bins: No header line detected. ' + \
                    'Adding default header.'
       print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
-      n_addl_col = len(header.split('\t')) - 3
-      header = '#chr\tstart\tend'
-      if n_addl_col > 0:
-        default_colname = 'user_col_{0}'
-        default_cols = [default_colname.format(str(i+1)) for i in range(n_addl_col)]
-        header = header + '\t' + '\t'.join(default_cols)
+      n_extra_cols = len(header.split('\t')) - 3
+      header = make_default_bed_header(n_extra_cols)
     newheader = header + '\t' + '\t'.join(list(track_names))
     if fasta is not None:
         newheader = '\t'.join([newheader, 'pct_gc'])
@@ -145,7 +142,7 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
                                     snv_mus, maxfloat, ucsc_chromsplit, quiet)
 
     # Save annotated bins
-    if '.gz' in outfile:
+    if 'compressed' in determine_filetype(outfile):
         outfile = path.splitext(outfile)[0]
     newbins.saveas(outfile, trackline=newheader)
 
@@ -154,13 +151,153 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
         bgz(outfile)
 
 
+@click.command(name='annotate-pairs')
+@click.argument('pairs', type=click.Path(exists=True))
+@click.argument('outfile')
+@click.option('--include-chroms', 'chroms', default=None, 
+              help='Chromosomes to include (comma-separated) ' + 
+              '[default: include all chromosomes]')
+@click.option('-R', '--ranges', default=None,
+              help='BED file containing range(s) for pair restriction.')
+@click.option('-t', '--track', default=None, multiple=True,
+              help='Path to local annotation track to apply to pairs.')
+@click.option('-u', '--ucsc-track', default=None, multiple=True, 
+              help='UCSC table name to annotate. Requires specifying --ucsc-ref. ' +
+              'Default columns will be ignored if multiple columns are specified. ' +
+              'Separate multiple columns with commas. Conditional column ' +
+              'requirements can be specified by adding a comparison symbol to ' +
+              'the column entry (e.g., rmsk:repClass=LINE).')
+@click.option('-a', '--actions', default=None, help='Action to apply to each ' + 
+              'annotation track. Will be applied sequentially to each entry to ' +
+              '--track and --ucsc-track, in that order (all --track entries before ' +
+              '--ucsc-track entries). Must be specified the same number of times ' + 
+              'as --tracks and --ucsc-tracks combined.',
+              multiple=True, 
+              type=click.Choice(['count-pairs', 'pairwise-coverage', 'any-pairwise-overlap']))
+@click.option('-n', '--track-names', default=None, help='Column names to assign to ' +
+              'each new column in the header of the annotated bins file. ' +
+              'Follows the same rules for ordering as --actions.',
+              multiple=True)
+@click.option('--track-list', default=None, 
+              help='List of local tracks to annotate. Must be specified as three-' +
+              'column, tab-delimited text file. One row per track. Columns ' +
+              'correspond to argumenmts passed as -t, -a, and -n, respectively. ' +
+              'Will be added to other tracks directly specified with -t/-a/-n.')
+@click.option('--ucsc-list', default=None, 
+              help='List of UCSC tracks to annotate. Must be specified as three-' +
+              'column, tab-delimited text file. One row per track. Columns ' +
+              'correspond to argumenmts passed as -u, -a, and -n, respectively. ' +
+              'Will be added to other tracks directly specified with -u/-a/-n.')
+@click.option('-r', '--ucsc-ref', default=None, type=click.Choice(['hg18', 'hg19', 'hg38']),
+              help='UCSC reference genome to use with --ucsc-tracks.')
+@click.option('--fasta', default=None, help='Reference genome fasta file. If ' +
+              'supplied, will annotate all bins with nucleotide content. Will ' +
+              'also generate fasta index if not already available locally.')
+@click.option('--binsize', type=int, default=None, help='Size of bins. [default: ' +
+              'infer from spacing of coordinates of pairs]')
+@click.option('--homology-cutoff', 'homology_cutoffs', type=float, multiple=True, 
+              help='Custom cutoffs for minimum pairwise sequence identity when ' +
+              'calculating homology-based features. Requires --fasta. May be specified ' +
+              'multiple times. [default: 1.0]')
+@click.option('--no-ucsc-chromsplit', is_flag=True, default=False, 
+              help='Disable serial per-chromosome queries for UCSC tracks. May ' + 
+              'improve annotation speed. Not recommended unless input bin file ' +
+              'is small.')
+@click.option('--maxfloat', type=int, default=8, 
+              help='Maximum precision of floating-point values. [default: 8]')
+@click.option('-z', '--bgzip', is_flag=True, default=False, 
+              help='Compress output with bgzip.')
+@click.option('-q', '--quiet', is_flag=True, default=False, 
+              help='Silence progress messages.')
+def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions, 
+                  track_names, track_list, ucsc_list, ucsc_ref, fasta, binsize, 
+                  homology_cutoffs, no_ucsc_chromsplit, maxfloat, bgzip, quiet):
+    """
+    Annotate pairs
+    """
+
+    # Sanitize & format inputs
+    ucsc_chromsplit = not no_ucsc_chromsplit
+    tracks = list(track)
+    ucsc_tracks = list(ucsc_track)
+    actions = tuple([a.lower() for a in actions])
+    if len(homology_cutoffs) > 0:
+      homology_cutoffs = list(homology_cutoffs)
+    else:
+      homology_cutoffs = [1.0]
+
+    # Parse file with lists of tracks (if provided) and add to track lists
+    if track_list is not None:
+      supp_tracks, supp_actions, supp_names = mutrate.parse_track_file(track_list)
+      tracks = tracks + supp_tracks
+      n_ucsc_tracks = len(ucsc_tracks)
+      if n_ucsc_tracks > 0:
+        actions = tuple(list(actions[:n_ucsc_tracks]) + supp_actions \
+                        + list(actions[n_ucsc_tracks:]))
+        track_names = tuple(list(track_names[:n_ucsc_tracks]) + supp_names \
+                        + list(track_names[n_ucsc_tracks:]))
+      else:
+        actions = tuple(list(actions) + supp_actions)
+        track_names = tuple(list(track_names) + supp_names)
+
+    # Parse file with list of UCSC tracks (if provided and add to track lists)
+    if ucsc_list is not None:
+      supp_ucsc_tracks, supp_ucsc_actions, supp_ucsc_names = mutrate.parse_track_file(ucsc_list)
+      ucsc_tracks = ucsc_tracks + supp_ucsc_tracks
+      actions = tuple(list(actions) + supp_ucsc_actions)
+      track_names = tuple(list(track_names) + supp_ucsc_names)
+
+    # Handle header reformatting
+    if 'compressed' in determine_filetype(pairs):
+        header = GzipFile(pairs).readline().decode('utf-8').rstrip()
+    else:
+        header = open(pairs, 'r').readline().rstrip()
+    if not header.startswith('#'):
+      msg = 'INPUT WARNING: '
+      status_msg = '[{0}] athena annotate-pairs: No header line detected. ' + \
+                   'Adding default header.'
+      print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
+      n_extra_cols = len(header.split('\t')) - 3
+      header = make_default_bed_header(n_extra_cols)
+    if len(track_names) > 0:
+      newheader = header + '\t' + '\t'.join(list(track_names))
+    else:
+      newheader = header
+    if fasta is not None:
+      for k in homology_cutoffs:
+        for direction in 'fwd rev'.split():
+          newheader += '\t' + 'longest_{}_kmer_{}pct_identity'.format(direction, int(round(100 * k)))
+
+
+    # Annotate pairs
+    newpairs = mutrate.annotate_pairs(pairs, chroms, ranges, tracks, ucsc_tracks, 
+                                      actions, track_names, ucsc_ref, fasta, binsize, 
+                                      homology_cutoffs, ucsc_chromsplit, maxfloat, quiet)
+
+    # Save annotated bins
+    if 'compressed' in determine_filetype(outfile):
+        outfile = path.splitext(outfile)[0]
+    newpairs.saveas(outfile, trackline=newheader)
+
+    # Bgzip bins, if optioned
+    if bgzip:
+        bgz(outfile)
+
+
 @click.command(name='eigen-bins')
 @click.argument('bins', type=click.Path(exists=True))
-@click.argument('outfile')
+@click.option('-o', '--decomped-bins-outfile', 'bins_outfile', 
+                help='Output file for bins with decomposed annotations.')
+@click.option('-P', '--parameters-outfile', help='Output .pickle for learned ' +
+                'transformation parameters. Useful to apply transformation to ' +
+                'additional BED files not included in training.')
+@click.option('--precomputed-parameters', 'precomp_model', help='Optional .pickle ' +
+              'input to import precomputed transformations, scaling, and covariance ' +
+              'matrix from a previous call of athena eigen-bins to apply to a new ' +
+              'dataset. Will override any command-line arguments that conflict with ' +
+              'the precomputed parameters.')
 @click.option('-e', '--eigenfeatures', 'components', type=int, default=10,
               help='Number of principal components to return.')
-@click.option('-I', '--ICA', 'ica', is_flag=True, default=False,
-              help='Perform ICA instead of PCA. In development. [default: PCA]')
 @click.option('--min-variance', type=float, default=None,
               help='Optional method for specifying number of components to return. ' + 
               'Specify minimum proportion of variance to explain.')
@@ -179,14 +316,16 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
 @click.option('--boxcox-transform', multiple=True, help='List of column names to ' +
               'be Box-Cox power-transformed prior to decomposition. Note that ' + 
               'the exact transformation is applied to x+max(x/1000).')
+@click.option('--whiten', is_flag=True, default=False,
+              help='"Whiten" eigenfeatures with standard normalization.')
 @click.option('--fill-missing', type=str, default='0',
               help='Behavior for filling missing values. Can specify numeric ' + 
               'value to fill all missing cells, or "mean"/"median" to ' +
               'impute on a per-column basis. [0]')
 @click.option('--skip-columns', type=int, default=3,
               help='Skip first N columns of input bins. [3]')
-@click.option('--maxfloat', type=int, default=10, 
-              help='Maximum precision of floating-point values.')
+@click.option('--maxfloat', type=int, default=8, 
+              help='Maximum precision of floating-point values. [default: 8]')
 @click.option('--max-components', 'max_pcs', type=int, default=100, 
               help='Maximum number of components to calculate.')
 @click.option('-s', '--stats', default=None,
@@ -195,22 +334,37 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, ucsc_
               'use when labeling eigenfeatures.')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output BED with bgzip.')
-def annodecomp(bins, outfile, ica, components, min_variance, trans_tsv, log_transform, 
-               sqrt_transform, exp_transform, square_transform, boxcox_transform,
-               fill_missing, skip_columns, maxfloat, max_pcs, stats, prefix, bgzip):
+def annodecomp(bins, bins_outfile, parameters_outfile, precomp_model, components, 
+               min_variance, trans_tsv, log_transform, sqrt_transform, exp_transform, 
+               square_transform, boxcox_transform, whiten, fill_missing, skip_columns, 
+               maxfloat, max_pcs, stats, prefix, bgzip):
     """
     Eigendecomposition of annotations
     """
 
-    if trans_tsv is not None:
-      trans = dfutils._load_transformations(trans_tsv)
-      log_transform = trans.get('log', [])
-      sqrt_transform = trans.get('sqrt', [])
-      exp_transform = trans.get('exp', [])
-      square_transform = trans.get('square', [])
-      boxcox_transform = trans.get('boxcox', [])
+    # Check that either -o or -t options are provided
+    if bins_outfile is None and parameters_outfile is None:
+      from os import exit
+      exit('INPUT ERROR: must specify at least one of -o or -P')
 
-    mutrate.decompose_bins(bins, outfile, ica, components, min_variance, log_transform, 
-                           sqrt_transform, exp_transform, square_transform, 
-                           boxcox_transform, fill_missing, skip_columns, maxfloat, 
-                           max_pcs, stats, prefix, bgzip)
+    # Consolidate all variable transformations into a single dictionary
+    # This is necessary for including transformations when pickling trained models
+    if trans_tsv is not None:
+      trans_dict = dfutils._load_transformations(trans_tsv)
+    else:
+      trans_dict = {t : [] for t in 'log sqrt exp square boxcox'.split()}
+    for f in log_transform:
+      trans_dict['log'].append(f)
+    for f in sqrt_transform:
+      trans_dict['sqrt'].append(f)
+    for f in exp_transform:
+      trans_dict['exp'].append(f)
+    for f in square_transform:
+      trans_dict['square'].append(f)
+    for f in boxcox_transform:
+      trans_dict['boxcox'].append(f)
+
+    # Run feature decomposition
+    mutrate.decompose_bins(bins, bins_outfile, parameters_outfile, precomp_model, 
+                           components, min_variance, trans_dict, whiten, fill_missing, 
+                           skip_columns, maxfloat, max_pcs, stats, prefix, bgzip)

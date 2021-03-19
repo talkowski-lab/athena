@@ -15,19 +15,47 @@ from os import path
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA, FastICA
 from scipy.stats import spearmanr
+import pickle
 import pybedtools
 from athena.utils.misc import bgzip as bgz
+from athena.utils.misc import determine_filetype
 import athena.utils.dfutils as dfutils
 
 
-# Compute PCA & feature stats
+def _load_precomp_model(precomp_model):
+    """
+    Load a precomputed eigen-bins model from a .pickle to be applied to new data
+    """
+
+    with open(precomp_model, 'rb') as pkl_in:
+        df_fills, trans_dict, scaler, pca, components, whitener = pickle.load(pkl_in)
+
+    return df_fills, trans_dict, scaler, pca, components, whitener
+
+
+def _save_model_params(df_fills, trans_dict, scaler, pca, components, whitener, 
+                       parameters_outfile):
+    """
+    Save a model's parameters as a .pickle for application to other data
+    """
+
+    with open(parameters_outfile, 'wb') as pkl_out:
+        model_to_save = [df_fills, trans_dict, scaler, pca, components, whitener]
+        pickle.dump(model_to_save, pkl_out)
+
+
 def get_feature_stats(df_annos, feature_names, pca, pcs, stats_outfile, 
-                      eigen_prefix):
+                      eigen_prefix, components=None):
+    """
+    Compute PCA & feature stats
+    """
+
     # Compute variance explained
     expvar = list(pca.explained_variance_ratio_)
 
     # Prep feature correlation dictionary
-    components = pca.n_components_
+    if components is None:
+        components = pca.n_components_
     eigen_names = ['_'.join([eigen_prefix, str(i+1)]) for i in range(components)]
     corstats = {}
     for name in eigen_names:
@@ -63,59 +91,82 @@ def get_feature_stats(df_annos, feature_names, pca, pcs, stats_outfile,
         fout.write('\n\n')
 
 
-# Clean up long floats in a data frame
-def float_cleanup(df, maxfloat, start_idx):
-    df.iloc[:, start_idx:] = df.iloc[:, start_idx:].replace('.', np.nan)
-    df.iloc[:, start_idx:] = df.iloc[:, start_idx:].apply(pd.to_numeric)
-    df.iloc[:, start_idx:] = df.iloc[:, start_idx:].round(maxfloat)
-    return df
+def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_model=None, 
+                   components=10, minvar=None, trans_dict=None, whiten=False, 
+                   fill_missing=0, first_column=3, maxfloat=5, max_pcs=100, 
+                   pca_stats=None, eigen_prefix='eigenfeature', bgzip=False):
+    """
+    Master function for Eigendecomposition of bin annotations
+    """
 
+    # Set certain defaults prior to loading precomputed model
+    whitener = None
 
-# Master function for Eigendecomposition of bin annotations
-def decompose_bins(bins, outfile, ica=False, components=10, minvar=None, 
-                   log_transform=None, sqrt_transform=None, exp_transform=None, 
-                   square_transform=None, boxcox_transform=None, fill_missing=0, 
-                   first_column=3, maxfloat=5, max_pcs=100, pca_stats=None, 
-                   eigen_prefix='eigenfeature', bgzip=False):
+    # Load precomputed model, if optioned
+    if precomp_model is not None:
+        df_fills, trans_dict, scaler, pca, components, whitener = \
+            _load_precomp_model(precomp_model)
+        fill_missing = df_fills
+
+    # Expand feature transformation dictionary
+    log_transform = trans_dict.get('log', [])
+    sqrt_transform = trans_dict.get('sqrt', [])
+    exp_transform = trans_dict.get('exp', [])
+    square_transform = trans_dict.get('square', [])
+    boxcox_transform = trans_dict.get('boxcox', [])
 
     # Read bins, then sanitize and transform annotations
     df_bins = pd.read_csv(bins, sep='\t', usecols=range(first_column))
-    df_annos = dfutils.load_feature_df(bins, first_column, log_transform,
-                                       sqrt_transform, exp_transform, 
-                                       square_transform,  boxcox_transform,
-                                       fill_missing)
+    df_annos, df_fills = \
+        dfutils.load_feature_df(bins, first_column, log_transform, sqrt_transform, 
+                                exp_transform, square_transform,  boxcox_transform, 
+                                fill_missing, return_fills=True)
     feature_names = df_annos.columns.tolist()
 
     # Scale all columns
-    df_annos = StandardScaler().fit_transform(df_annos)
+    if precomp_model is None:
+        scaler = StandardScaler().fit(df_annos)
+    df_annos = scaler.transform(df_annos)
 
-    # Decompose annotations
-    pcs_to_calc = min([df_annos.shape[1], max_pcs])
-    if ica:
-        ica = FastICA(n_components=pcs_to_calc)
-        ics = ica.fit_transform(df_annos)
-        exit('DEV NOTE: ICA is not currently supported. Exiting.')
-    else:
-        pca = PCA(n_components=pcs_to_calc)
-        pcs = pca.fit_transform(df_annos)
+    # Learn covariance matrix & determine number of components to keep
+    if precomp_model is None:
+        pcs_to_calc = min([df_annos.shape[1], max_pcs])
+        pca = PCA(n_components=pcs_to_calc).fit(df_annos)
         if minvar is None:
             components = pcs_to_calc
         else:
             components = len([i for i in np.cumsum(pca.explained_variance_ratio_) \
                               if i < minvar])
 
+    # Decompose annotations
+    pcs = pca.transform(df_annos)
     eigen_names = ['_'.join([eigen_prefix, str(i+1)]) for i in range(components)]
-    df_pcs = pd.DataFrame(pcs[:, :components], columns = eigen_names)
+    df_pcs = pd.DataFrame(pcs[:, :components], columns=eigen_names)
+
+    # "Whiten" eigenfeatures, if optioned
+    if whiten:
+        if precomp_model is None:
+            whitener = StandardScaler().fit(df_pcs)
+    if whitener is not None:
+        df_pcs = pd.DataFrame(whitener.transform(df_pcs), columns=eigen_names)
 
     # Write output bins with PCs
-    if '.gz' in outfile:
-        outfile = path.splitext(outfile)[0]
-    out_df = float_cleanup(pd.concat([df_bins, df_pcs], axis=1), maxfloat, first_column)
-    out_df.to_csv(outfile, sep='\t', index=False)
-    if bgzip:
-        bgz(outfile)
+    if bins_outfile is not None:
+        if 'compressed' in determine_filetype(bins_outfile):
+            bins_outfile = path.splitext(bins_outfile)[0]
+        out_df = dfutils.float_cleanup(pd.concat([df_bins, df_pcs], axis=1), 
+                                       maxfloat, first_column)
+        out_df.to_csv(bins_outfile, sep='\t', index=False)
+        if bgzip:
+            bgz(bins_outfile)
+
+    # Save model for future use, if optioned
+    if parameters_outfile is not None:
+        _save_model_params(df_fills, trans_dict, scaler, pca, components, 
+                           whitener, parameters_outfile)
 
     # Perform extra assessments of PCA & feature fits, if optioned
     if pca_stats is not None:
-        get_feature_stats(df_annos, feature_names, pca, pcs, pca_stats, eigen_prefix)
+        get_feature_stats(df_annos, feature_names, pca, pcs, pca_stats, 
+                          eigen_prefix, components)
 
