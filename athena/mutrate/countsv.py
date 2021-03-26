@@ -88,13 +88,20 @@ def calc_prob_bkpt(b_start, b_end, sv_mid, sv_start_sd, sv_end_sd):
 
     # Note: left and right tails of distribution must be treated separately because
     # SV breakpoint uncertainty is not always symmetric (and can be encoded in VCF as such)
-    left_z_min = min([-100, b_start_centered / sv_start_sd])
-    left_z_max = min([0, b_end_centered / sv_end_sd])
-    left_tail_p = norm.cdf(left_z_max) - norm.cdf(left_z_min)
 
-    right_z_min = max([0, b_start_centered / sv_start_sd])
-    right_z_max = min([100, max([0, b_end_centered / sv_end_sd])])
-    right_tail_p = norm.cdf(right_z_max) - norm.cdf(right_z_min)
+    if sv_start_sd > 0:
+        left_z_min = min([-100, b_start_centered / sv_start_sd])
+        left_z_max = min([0, b_end_centered / sv_end_sd])
+        left_tail_p = norm.cdf(left_z_max) - norm.cdf(left_z_min)
+    else:
+        left_tail_p = 0.5
+
+    if sv_end_sd > 0:
+        right_z_min = max([0, b_start_centered / sv_start_sd])
+        right_z_max = min([100, max([0, b_end_centered / sv_end_sd])])
+        right_tail_p = norm.cdf(right_z_max) - norm.cdf(right_z_min)
+    else:
+        right_tail_p = 0.5
 
     return left_tail_p + right_tail_p
 

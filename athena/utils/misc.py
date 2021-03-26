@@ -128,9 +128,11 @@ def vcf2bed(vcf, breakpoints=False, add_ci_to_bkpts=True, ci=0.95, z_extend=6):
 
         return ci_width / zscore_width
 
-
     intervals = ''
     bp_bed_fmt = '{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\n'
+
+    vcf_has_cipos = 'CIPOS' in vcf.header.info.keys()
+    vcf_has_ciend = 'CIEND' in vcf.header.info.keys()
     
     for record in vcf:
 
@@ -146,7 +148,7 @@ def vcf2bed(vcf, breakpoints=False, add_ci_to_bkpts=True, ci=0.95, z_extend=6):
         if breakpoints == True:
             # Format left breakpoint while accounting for CIPOS
             chrom_len = vcf.header.contigs[chrom].length
-            if add_ci_to_bkpts:
+            if add_ci_to_bkpts and vcf_has_cipos:
                 cipos = record.info.get('CIPOS', (0, 0))
             else:
                 cipos = (0, 0)
@@ -159,7 +161,7 @@ def vcf2bed(vcf, breakpoints=False, add_ci_to_bkpts=True, ci=0.95, z_extend=6):
 
             # Format right breakpoint while accounting for CIEND
             chrom_two_len = vcf.header.contigs[chrom_two].length
-            if add_ci_to_bkpts:
+            if add_ci_to_bkpts and vcf_has_ciend:
                 ciend = record.info.get('CIEND', (0, 0))
             else:
                 ciend = (0, 0)
