@@ -80,6 +80,27 @@ def vcfstats(vcf, quantiles):
     utils.vcf_stats(vcf, quantiles)
 
 
+# Adds breakpoint uncertainty annotations to an existing VCF
+@click.command(name='breakpoint-confidence')
+@click.argument('vcf', type=click.Path(exists=True))
+@click.argument('out', type=str)
+@click.option('--min-ci', type=int, default=0, help='Width of smallest 95% ' + \
+              'confidence interval to be assigned to any variant [default: 0 bp]')
+@click.option('--overwrite', is_flag=True, default=False, help='Overwrite existing ' + \
+              'CIPOS and CIEND annotations, if any [default: skip records with ' + \
+              'existing CIPOS and CIEND annotations]')
+@click.option('-z', '--bgzip', is_flag=True, default=False, 
+              help='Compress output with bgzip')
+def breakpointconfidence(vcf, out, min_ci, overwrite, bgzip):
+    """
+    Annotate breakpoint uncertainty
+    """
+    print('ATHENA DEV WARNING: breakpoint-confidence is still under development ' + \
+          'and currently only supports fixed CI values. This will be updated in a ' + \
+          'future version.')
+    utils.breakpoint_confidence(vcf, out, min_ci, overwrite, bgzip)
+
+
 # Bin creation
 @click.command(name='make-bins')
 @click.argument('genome', type=click.Path(exists=True))
@@ -218,48 +239,6 @@ def transform(bed_in, bed_out, skip_cols, trans_tsv, log_transform, sqrt_transfo
 
   utils.transform_df(bed_in, bed_out, skip_cols, log_transform, sqrt_transform,
                       exp_transform, square_transform, boxcox_transform, bgzip)
-
-
-# Intersect SVs and bins
-@click.command(name='count-sv')
-@click.argument('bins', type=click.Path(exists=True))
-@click.argument('sv', type=click.Path(exists=True))
-@click.argument('outfile')
-@click.option('--sv-format', type=click.Choice(['vcf', 'bed']),
-              help='File format of SV input. Required.')
-@click.option('--comparison', type=click.Choice(['interval', 'breakpoint']),
-              help='Specification of SV-to-bin comparison. Required.')
-@click.option('--min-bin-coverage', 'min_cov', type=float, default=0.001,
-              help='Minimum fraction of bin to be covered by SV before being ' + 
-              'counted. Only used with --comparison breakpoint.')
-@click.option('-z', '--bgzip', is_flag=True, default=False, 
-              help='Compress output with bgzip')
-def countsv(bins, sv, outfile, sv_format, comparison, min_cov, bgzip):
-    """
-    Intersect SV and bins
-    """
-
-    # Ensure --sv-format is specified
-    if sv_format not in 'vcf bed'.split():
-        from sys import exit
-        if sv_format is None:
-            err = 'INPUT ERROR: --sv-format is required. Options: "vcf" or "bed".'
-        else:
-            err = 'INPUT ERROR: --sv-format "{0}" not recognized. Options: "vcf" or "bed".'
-        exit(err.format(sv_format))
-
-    # Ensure --comparison is specified
-    if comparison not in 'interval breakpoint'.split():
-        from sys import exit
-        if comparison is None:
-            err = 'INPUT ERROR: --comparison is required. Options: ' + \
-                  '"interval" or "breakpoint".'
-        else:
-            err = 'INPUT ERROR: --comparison "{0}" not recognized. Options: ' + \
-                  '"interval" or "breakpoint".'
-        exit(err.format(comparison))
-
-    utils.count_sv(bins, sv, outfile, sv_format, comparison, min_cov, bgzip)
 
 
 # Pair bins
