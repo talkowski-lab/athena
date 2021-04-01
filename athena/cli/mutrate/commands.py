@@ -428,3 +428,42 @@ def countsv(bins, sv, outfile, bin_format, binsize, comparison, probs, sv_ci,
     mutrate.count_sv(bins, sv, outfile, paired, binsize, breakpoints, probs, 
                      sv_ci, maxfloat, bgzip)
 
+
+# Train mutation rate model
+@click.command(name='mu-train')
+@click.argument('pairs', type=click.Path(exists=True))
+def mutrain(pairs):
+    """
+    Train mutation rate model
+    """
+
+    print('DEV NOTE: athena mu-train still in development')
+
+    pass
+
+
+# Apply a pre-trained mutation rate model to predict mutation rates for new bins
+@click.command(name='mu-predict')
+@click.argument('pairs', type=click.Path(exists=True))
+def mupredict(pairs):
+    """
+    Predict mutation rates with a trained model
+    """
+
+    print('DEV NOTE: athena mu-predict still in development')
+
+    pass
+
+
+# Query mutation rates
+@click.command(name='mu-query')
+@click.argument('pairs', type=click.Path(exists=True))
+def muquery(pairs):
+    """
+    Query a mutation rate matrix
+    """
+
+    print('DEV NOTE: athena mu-predict still in development')
+
+    pass
+

@@ -44,6 +44,9 @@ mutratecli.add_command(mutrate_commands.annotatebins)
 mutratecli.add_command(mutrate_commands.annotatepairs)
 mutratecli.add_command(mutrate_commands.annodecomp)
 mutratecli.add_command(mutrate_commands.countsv)
+mutratecli.add_command(mutrate_commands.mutrain)
+mutratecli.add_command(mutrate_commands.mupredict)
+mutratecli.add_command(mutrate_commands.muquery)
 
 # Dosage sensitivity modeling functions
 @click.group(name='Dosage sensitivity modeling')
@@ -52,8 +55,6 @@ def dosagecli():
     Dosage sensitivity modeling
     """
     pass
-
-dosagecli.add_command(dosage_commands.mutquery)
 
 
 # Top-level click command group for cli

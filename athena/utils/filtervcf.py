@@ -24,7 +24,7 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list,
 
     # Open connection to input VCF
     if vcf in '- stdin'.split():
-        invcf = pysam.VariantFile(sys.stdin) 
+        invcf = pysam.VariantFile(stdin) 
     else:
         invcf = pysam.VariantFile(vcf)
     header = invcf.header
@@ -43,7 +43,7 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list,
 
     # Open connection to output VCF
     if out in '- stdout'.split():
-        outvcf = pysam.VariantFile(sys.stdout, 'w', header=header)
+        outvcf = pysam.VariantFile(stdout, 'w', header=header)
     else:
         if '.gz' in out:
             out = path.splitext(out)[0]
