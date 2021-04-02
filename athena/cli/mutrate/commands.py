@@ -431,15 +431,32 @@ def countsv(bins, sv, outfile, bin_format, binsize, comparison, probs, sv_ci,
 
 # Train mutation rate model
 @click.command(name='mu-train')
-@click.argument('pairs', type=click.Path(exists=True))
-def mutrain(pairs):
+@click.option('--training-data', type=click.Path(exists=True), required=True,
+              help='Two-column .tsv of contig name and path to training BED ' +
+              'file for each contig')
+@click.option('-m', '--model', 'model_class', required=True, 
+              type=click.Choice(['logit']), help='Specify model architecture')
+@click.option('-o', '--model-outfile', 'outfile', required=True, type=str,
+              help='Path to .pkl file for trained model')
+@click.option('--stats-outfile', type=str, help='Path to output .tsv file with ' +
+              'training stats')
+@click.option('--no-cv', is_flag=True, help='Do not run cross-validation to ' +
+              'evaluate model performance')
+@click.option('-k', '--max-cv-k', type=int, default=10, help='Maximum number of ' +
+              'cross-validation folds to use for assessing model performance ' +
+              '[default: randomly sample no more than 10 held-out chromosomes ' +
+              'as test sets for cross-validation]')
+@click.option('-q', '--quiet', is_flag=True, help='Do not print progress to stdout')
+def mutrain(training_data, model_class, outfile, stats_outfile, 
+            no_cv, max_cv_k, quiet):
     """
     Train mutation rate model
     """
 
-    print('DEV NOTE: athena mu-train still in development')
+    cv_eval = not no_cv
 
-    pass
+    mutrate.mu_train(training_data, model_class, outfile, stats_outfile, 
+                     cv_eval, max_cv_k, quiet)
 
 
 # Apply a pre-trained mutation rate model to predict mutation rates for new bins
