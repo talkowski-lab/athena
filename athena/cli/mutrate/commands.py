@@ -446,17 +446,24 @@ def countsv(bins, sv, outfile, bin_format, binsize, comparison, probs, sv_ci,
               'cross-validation folds to use for assessing model performance ' +
               '[default: randomly sample no more than 10 held-out chromosomes ' +
               'as test sets for cross-validation]')
+@click.option('--l2', type=float, default=0.1, help='Magnitude of L2 regularization ' +
+              'to apply during model training [default: 0.1]')
 @click.option('-q', '--quiet', is_flag=True, help='Do not print progress to stdout')
 def mutrain(training_data, model_class, outfile, stats_outfile, 
-            no_cv, max_cv_k, quiet):
+            no_cv, max_cv_k, l2, quiet):
     """
     Train mutation rate model
     """
 
     cv_eval = not no_cv
 
+    hypers = {'cv_eval' : cv_eval,
+              'max_cv_k' : max_cv_k,
+              'l2' : l2,
+              'seed' : 2021}
+
     mutrate.mu_train(training_data, model_class, outfile, stats_outfile, 
-                     cv_eval, max_cv_k, quiet)
+                     hypers, quiet)
 
 
 # Apply a pre-trained mutation rate model to predict mutation rates for new bins

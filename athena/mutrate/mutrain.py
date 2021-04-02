@@ -16,6 +16,7 @@ import torch.utils.data as data_utils
 import csv
 from datetime import datetime
 import random
+from numpy import median
 
 
 def load_training_bed(bed_path, as_tensor=True):
@@ -103,10 +104,12 @@ def eval_model(pred, labels, cutoff=0.5, noise=10e-10):
     return stats
 
 
-def contig_cv(data_dict, test_contig, model_class, seed=2021):
+def contig_cv(data_dict, test_contig, model_class, hypers):
     """
     Wrapper to conduct a single round of training & testing for a held-out chromosome
     """
+
+    seed = hypers['seed']
 
     # Split data
     train_contigs = [k for k in data_dict.keys() if k != test_contig]
@@ -115,11 +118,12 @@ def contig_cv(data_dict, test_contig, model_class, seed=2021):
     test_features, test_labels = \
         make_training_tensors(data_dict, xchroms=train_contigs, seed=seed)
 
-    # Fit model
+    # Fit model with early stopping
     model, optimizer, criterion = \
-        models.initialize_torch_model(model_class, train_features)
-    fit_model = models.train_torch_model(train_features, train_labels, model, 
-                                         optimizer, criterion, seed=seed)
+        models.initialize_torch_model(model_class, train_features, hypers)
+    earlyStopping = {'features' : test_features, 'labels' : test_labels, 'monitor' : 5}
+    fit_model, training_info = \
+        models.train_torch_model(train_features, train_labels, model, optimizer, criterion, stop_early=True, earlyStopping=earlyStopping, seed=seed)
 
     # # Compute training & testing statistics
     model.eval()
@@ -128,14 +132,16 @@ def contig_cv(data_dict, test_contig, model_class, seed=2021):
         test_stats = eval_model(fit_model(test_features), test_labels)
     model.train()
 
-    return model, train_stats, test_stats
+    return model, training_info, train_stats, test_stats
 
 
-def mu_train(training_data, model_class, outfile, stats_outfile, cv_eval, 
-             max_cv_k, quiet, seed=2021):
+def mu_train(training_data, model_class, outfile, stats_outfile, hypers, quiet):
     """
     Master function to train a single mutation rate model
     """
+
+    # Unpack certain hypers
+    seed = hypers['seed']
 
     # Load and process all training BEDs
     if not quiet:
@@ -143,49 +149,68 @@ def mu_train(training_data, model_class, outfile, stats_outfile, cv_eval,
         print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
     data_dict = load_all_training_beds(training_data)
 
-    # Assign chromosomes to be held out for cross-validation
-    cv_k = min([len(data_dict), max_cv_k])
-    random.seed(seed)
-    cv_test_contigs = sorted(random.sample(data_dict.keys(), cv_k))
-    if not quiet:
-        status_msg = '[{0}] athena mu-predict: Holding out data for the following ' + \
-                     '{1} contigs as cross-validation test sets: {2}'
-        print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'),
-                                cv_k, ', '.join(cv_test_contigs)))
+    # Perform cross-validation, if optioned
+    if hypers['cv_eval']:
 
-    # Evaluate training & testing performance with cross-validation
-    for test_contig in cv_test_contigs:
-        cv_res = {}
-        fit_model, train_stats, test_stats = \
-            contig_cv(data_dict, test_contig, model_class, seed=seed)
-        cv_res[test_contig] = {'model' : fit_model,
-                               'train_stats' : train_stats,
-                               'test_stats' : test_stats}
+        # Assign chromosomes to be held out for cross-validation
+        cv_k = min([len(data_dict), hypers['max_cv_k']])
+        random.seed(seed)
+        cv_test_contigs = sorted(random.sample(data_dict.keys(), cv_k))
         if not quiet:
-            status_msg = '[{0}] athena mu-predict: Cross-validation results for {1}:'
-            print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
-                                    test_contig))
-            print('  TRAINING:')
-            for key, value in train_stats.items():
-                print('    * {} = {}'.format(key, round(value, 6)))
-            print('  TESTING:')
-            for key, value in test_stats.items():
-                print('    * {} = {}'.format(key, round(value, 6)))
+            status_msg = '[{0}] athena mu-predict: Holding out data for the following ' + \
+                         '{1} contigs as cross-validation test sets: {2}'
+            print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'),
+                                    cv_k, ', '.join(cv_test_contigs)))
+
+        # Evaluate training & testing performance with cross-validation
+        for test_contig in cv_test_contigs:
+            cv_res = {}
+            fit_model, training_info, train_stats, test_stats = \
+                contig_cv(data_dict, test_contig, model_class, hypers)
+            stop_reason = training_info['stop_reason']
+            cv_res[test_contig] = {'model' : fit_model,
+                                   'train_stats' : train_stats,
+                                   'test_stats' : test_stats,
+                                   'epochs' : training_info['epochs_trained'],
+                                   'stop_reason' : stop_reason}
+            if stop_reason == 'train_eps':
+                stop_explain = 'reaching minimum change in training loss'
+            elif stop_reason == 'test_eps':
+                stop_explain = 'reaching minimum change in testing loss'
+            elif stop_reason == 'overfit':
+                stop_explain = 'testing loss beginning to increase'
+            elif stop_reason == 'max_epochs':
+                stop_explain = 'reaching maximum number of epochs'
+            if not quiet:
+                status_msg = '[{0}] athena mu-predict: Cross-validation results for {1} ' + \
+                             'after {2} epochs (stopped due to {3}):'
+                print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
+                                        test_contig, training_info['epochs_trained'], stop_explain))
+                print('  TRAINING:')
+                for key, value in train_stats.items():
+                    print('    * {} = {}'.format(key, round(value, 6)))
+                print('  TESTING:')
+                for key, value in test_stats.items():
+                    print('    * {} = {}'.format(key, round(value, 6)))
 
     # After cross-validation, train model on all data for best predictive power
+    # Stop after median number of epochs from CV, above
     all_features, all_labels = \
         make_training_tensors(data_dict, xchroms=[], seed=seed)
     model, optimizer, criterion = \
-        models.initialize_torch_model(model_class, all_features)
-    final_model = models.train_torch_model(all_features, all_labels, model, 
-                                           optimizer, criterion)
+        models.initialize_torch_model(model_class, all_features, hypers)
+    avg_epochs = int(median([vals['epochs'] for vals in cv_res.values()]))
+    final_model, training_info = \
+        models.train_torch_model(all_features, all_labels, model, optimizer, 
+                                 criterion, stop_early=False, epochs=avg_epochs)
 
     # Evaluate training performance of final model
     final_model.eval()
     final_stats = eval_model(final_model(all_features), all_labels)
     if not quiet:
-        status_msg = '[{0}] athena mu-predict: Training performance for full model:'
-        print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
+        status_msg = '[{0}] athena mu-predict: Training performance for full model ' + \
+                     'after {1} epochs:'
+        print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), avg_epochs))
         for key, value in final_stats.items():
             print('    * {} = {}'.format(key, round(value, 6)))
 
