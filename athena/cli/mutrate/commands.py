@@ -475,14 +475,24 @@ def mutrain(training_data, model_class, model_out, stats_out, cal_out, no_cv,
 # Apply a pre-trained mutation rate model to predict mutation rates for new bins
 @click.command(name='mu-predict')
 @click.argument('pairs', type=click.Path(exists=True))
-def mupredict(pairs):
+@click.option('-m', '--trained-model', 'model_pkl', type=click.Path(exists=True), 
+              required=True, help='.pkl file containing trained model')
+@click.option('-o', '--outfile', required=True, type=str, help='Path to output .BED')
+@click.option('--raw-mu', is_flag=True, help='Report raw mutation probabilities ' +
+              '[default: log10-scale probabilities]')
+@click.option('-k', '--keep-features', is_flag=True, help='Include all features ' +
+              'from input pairs in --outbed')
+@click.option('--maxfloat', type=int, default=8, 
+              help='Maximum precision of floating-point values. [default: 8]')
+@click.option('-z', '--bgzip', is_flag=True, default=False, 
+              help='Compress output with bgzip')
+def mupredict(pairs, model_pkl, outfile, raw_mu, keep_features, maxfloat, bgzip):
     """
     Predict mutation rates with a trained model
     """
 
-    print('DEV NOTE: athena mu-predict still in development')
-
-    pass
+    mutrate.mu_predict(pairs, model_pkl, outfile, raw_mu, keep_features, 
+                       maxfloat, bgzip)
 
 
 # Query mutation rates
