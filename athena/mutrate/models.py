@@ -52,6 +52,7 @@ def train_torch_model(features, labels, model, optimizer, criterion, epochs=10e6
 
     # Check elements of earlyStopping dict
     train_eps = earlyStopping.get('train_eps', 10e-8)
+    stop_by_train_eps = earlyStopping.get('stop_by_train_eps', False)
     if 'features' in earlyStopping.keys() \
     and 'labels' in earlyStopping.keys():
         check_test_set = True
@@ -59,6 +60,7 @@ def train_torch_model(features, labels, model, optimizer, criterion, epochs=10e6
         test_labels = earlyStopping['labels']
         monitor = earlyStopping.get('monitor', 5)
         test_eps = earlyStopping.get('train_eps', 10e-8)
+        stop_by_test_eps = earlyStopping.get('stop_by_test_eps', False)
         overfit_at_epoch = epochs
     else:
         check_test_set = False
@@ -87,7 +89,8 @@ def train_torch_model(features, labels, model, optimizer, criterion, epochs=10e6
                 test_loss = criterion(model(test_features), test_labels)
                 test_loss_over_time.append(test_loss.float().item())
                 if len(test_loss_over_time) > 1:
-                    if test_loss_over_time[-2] < test_loss_over_time[-1]:
+                    if test_loss_over_time[-2] < test_loss_over_time[-1] \
+                    and epoch < overfit_at_epoch:
                         overfit_at_epoch = epoch
             model.train()
 
@@ -96,14 +99,14 @@ def train_torch_model(features, labels, model, optimizer, criterion, epochs=10e6
             if len(loss_over_time) > 1:
                 # Stop if marginal training loss has converged below train_eps
                 dLoss_train = loss_over_time[-2] - loss_over_time[-1]
-                if abs(dLoss_train) < train_eps:
+                if stop_by_train_eps and abs(dLoss_train) < train_eps:
                     stop_reason = 'train_eps'
                     break
             if check_test_set:
                 # Stop if marginal testing loss has converged below test_eps
                 if len(test_loss_over_time) > 1:
                     dLoss_test = test_loss_over_time[-2] - test_loss_over_time[-1]
-                    if abs(dLoss_test) < test_eps:
+                    if stop_by_test_eps and abs(dLoss_test) < test_eps:
                         stop_reason = 'test_eps'
                         break
                     # Stop if testing loss started to increase in a previous 

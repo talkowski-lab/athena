@@ -436,10 +436,12 @@ def countsv(bins, sv, outfile, bin_format, binsize, comparison, probs, sv_ci,
               'file for each contig')
 @click.option('-m', '--model', 'model_class', required=True, 
               type=click.Choice(['logit']), help='Specify model architecture')
-@click.option('-o', '--model-outfile', 'outfile', required=True, type=str,
-              help='Path to .pkl file for trained model')
-@click.option('--stats-outfile', type=str, help='Path to output .tsv file with ' +
-              'training stats')
+@click.option('-o', '--model-outfile', 'model_out', type=str, help='Path to ' +
+              '.pkl file for trained model')
+@click.option('--stats-outfile', 'stats_out', type=str, help='Path to output .tsv ' +
+              'with training stats')
+@click.option('--calibration-outfile', 'cal_out', type=str, help='Path to output ' +
+              '.tsv with predicted mutation rates and SV counts for all training bins')
 @click.option('--no-cv', is_flag=True, help='Do not run cross-validation to ' +
               'evaluate model performance')
 @click.option('-k', '--max-cv-k', type=int, default=10, help='Maximum number of ' +
@@ -448,22 +450,26 @@ def countsv(bins, sv, outfile, bin_format, binsize, comparison, probs, sv_ci,
               'as test sets for cross-validation]')
 @click.option('--l2', type=float, default=0.1, help='Magnitude of L2 regularization ' +
               'to apply during model training [default: 0.1]')
+@click.option('--maxfloat', type=int, default=8, 
+              help='Maximum precision of floating-point values. [default: 8]')
 @click.option('-q', '--quiet', is_flag=True, help='Do not print progress to stdout')
-def mutrain(training_data, model_class, outfile, stats_outfile, 
-            no_cv, max_cv_k, l2, quiet):
+def mutrain(training_data, model_class, model_out, stats_out, cal_out, no_cv, 
+            max_cv_k, l2, maxfloat, quiet):
     """
     Train mutation rate model
     """
 
     cv_eval = not no_cv
 
+    # All hyperparameters are passed via dict (hypers)
+    # Hyperparameters not passed at this stage will be populated within mutrate.mu_train()
     hypers = {'cv_eval' : cv_eval,
               'max_cv_k' : max_cv_k,
               'l2' : l2,
               'seed' : 2021}
 
-    mutrate.mu_train(training_data, model_class, outfile, stats_outfile, 
-                     hypers, quiet)
+    mutrate.mu_train(training_data, model_class, model_out, stats_out, cal_out, 
+                     hypers, maxfloat, quiet)
 
 
 # Apply a pre-trained mutation rate model to predict mutation rates for new bins
