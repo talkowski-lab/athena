@@ -265,10 +265,12 @@ def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref,
     # Load bins. Note: must read contents from file due to odd utf-8 decoding 
     # behavior for bgzipped BED files
     ftype = determine_filetype(bins)
+    if ftype is None:
+        ftype = 'unknown'
     if 'compressed' in ftype:
         bins = ''.join(s.decode('utf-8') for s in GzipFile(bins).readlines())
     else:
-        bins = open(bins, 'r').readlines()
+        bins = ''.join(open(bins, 'r').readlines())
     firstline = bins.split('\n')[0].split('\t')
     if firstline[0].startswith('#'):
         colnames = firstline
