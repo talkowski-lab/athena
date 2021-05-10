@@ -14,6 +14,7 @@ from athena import mutrate
 from athena.utils.misc import bgzip as bgz
 from athena.utils.misc import determine_filetype, make_default_bed_header
 from os import path
+from sys import exit
 from gzip import GzipFile
 from datetime import datetime
 import athena.utils.dfutils as dfutils
@@ -115,7 +116,6 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, actio
     # Handle header reformatting
     n_tracks = len(track) + len(ucsc_track)
     if n_tracks != len(track_names):
-        from sys import exit
         err = 'INPUT ERROR: Number of supplied track names ({0}) does not ' + \
               'match number of tracks ({1}).'
         exit(err.format(len(track_names), n_tracks))
@@ -124,7 +124,6 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, actio
     else:
         header = open(bins, 'r').readline().rstrip()
     if not header.startswith('#'):
-      msg = 'INPUT WARNING: '
       status_msg = '[{0}] athena annotate-bins: No header line detected. ' + \
                    'Adding default header.'
       print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
@@ -368,3 +367,143 @@ def annodecomp(bins, bins_outfile, parameters_outfile, precomp_model, components
     mutrate.decompose_bins(bins, bins_outfile, parameters_outfile, precomp_model, 
                            components, min_variance, trans_dict, whiten, fill_missing, 
                            skip_columns, maxfloat, max_pcs, stats, prefix, bgzip)
+
+
+# Intersect SVs and bins
+@click.command(name='count-sv')
+@click.argument('bins', type=click.Path(exists=True))
+@click.argument('sv', type=click.Path(exists=True))
+@click.argument('outfile')
+@click.option('--bin-format', type=click.Choice(['1D', '2D']),
+              help='Specify format of input: bins (1D) or bin-pairs (2D) [default: 2D]',
+              default='2D', required=True)
+@click.option('--binsize', type=int, default=None, help='Size of bins [default: ' +
+              'infer from spacing of start coordinates]')
+@click.option('--comparison', type=click.Choice(['overlap', 'breakpoint']),
+              help='Specification of SV-to-bin comparison [default: breakpoint]',
+              default='breakpoint', required=True)
+@click.option('-p', '--probabilities', 'probs', is_flag=True, default=False,
+              help='Annotate probability of SVs instead of count [default: count SVs]')
+@click.option('--sv-ci', type=float, default=0.95, help='Specify confidence interval ' + 
+              'implied by CIPOS and CIEND if present in SV VCF input [default: 0.95]')
+@click.option('--maxfloat', type=int, default=8, 
+              help='Maximum precision of floating-point values. [default: 8]')
+@click.option('-z', '--bgzip', is_flag=True, default=False, 
+              help='Compress output with bgzip')
+def countsv(bins, sv, outfile, bin_format, binsize, comparison, probs, sv_ci, 
+            maxfloat, bgzip):
+    """
+    Intersect SV and 1D bins or 2D bin-pairs
+    """
+
+    # Ensure --bin-format is specified
+    if bin_format not in '1D 2D'.split():
+        if bin_format is None:
+            err = 'INPUT ERROR: --bin-format is required. Options: ' + \
+                  '"overlap" or "breakpoint".'
+        else:
+            err = 'INPUT ERROR: --bin-format "{0}" not recognized. Options: ' + \
+                  '"1D" or "2D".'
+        exit(err.format(bin_format))
+    paired = (bin_format == '2D')
+
+    # Ensure --comparison is specified
+    if comparison not in 'overlap breakpoint'.split():
+        if comparison is None:
+            err = 'INPUT ERROR: --comparison is required. Options: ' + \
+                  '"overlap" or "breakpoint".'
+        else:
+            err = 'INPUT ERROR: --comparison "{0}" not recognized. Options: ' + \
+                  '"overlap" or "breakpoint".'
+        exit(err.format(comparison))
+    breakpoints = (comparison == 'breakpoint')
+
+    # Warn if --probabilities specified with --comparison breakpoint
+    if probs and comparison == 'overlap':
+      status_msg = '[{0}] athena count-sv: --probabilities is not compatible ' + \
+                   'with --comparison "overlap". Returning binary indicator of ' + \
+                   'overlap/non-overlap instead.'
+      print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
+
+    mutrate.count_sv(bins, sv, outfile, paired, binsize, breakpoints, probs, 
+                     sv_ci, maxfloat, bgzip)
+
+
+# Train mutation rate model
+@click.command(name='mu-train')
+@click.option('--training-data', type=click.Path(exists=True), required=True,
+              help='Two-column .tsv of contig name and path to training BED ' +
+              'file for each contig')
+@click.option('-m', '--model', 'model_class', required=True, 
+              type=click.Choice(['logit']), help='Specify model architecture')
+@click.option('-o', '--model-outfile', 'model_out', type=str, help='Path to ' +
+              '.pkl file for trained model')
+@click.option('--stats-outfile', 'stats_out', type=str, help='Path to output .tsv ' +
+              'with training stats')
+@click.option('--calibration-outfile', 'cal_out', type=str, help='Path to output ' +
+              '.tsv with predicted mutation rates and SV counts for all training bins')
+@click.option('--no-cv', is_flag=True, help='Do not run cross-validation to ' +
+              'evaluate model performance')
+@click.option('-k', '--max-cv-k', type=int, default=10, help='Maximum number of ' +
+              'cross-validation folds to use for assessing model performance ' +
+              '[default: randomly sample no more than 10 held-out chromosomes ' +
+              'as test sets for cross-validation]')
+@click.option('--l2', type=float, default=0.1, help='Magnitude of L2 regularization ' +
+              'to apply during model training [default: 0.1]')
+@click.option('--maxfloat', type=int, default=8, 
+              help='Maximum precision of floating-point values. [default: 8]')
+@click.option('-q', '--quiet', is_flag=True, help='Do not print progress to stdout')
+def mutrain(training_data, model_class, model_out, stats_out, cal_out, no_cv, 
+            max_cv_k, l2, maxfloat, quiet):
+    """
+    Train mutation rate model
+    """
+
+    cv_eval = not no_cv
+
+    # All hyperparameters are passed via dict (hypers)
+    # Hyperparameters not passed at this stage will be populated within mutrate.mu_train()
+    hypers = {'cv_eval' : cv_eval,
+              'max_cv_k' : max_cv_k,
+              'l2' : l2,
+              'seed' : 2021}
+
+    mutrate.mu_train(training_data, model_class, model_out, stats_out, cal_out, 
+                     hypers, maxfloat, quiet)
+
+
+# Apply a pre-trained mutation rate model to predict mutation rates for new bins
+@click.command(name='mu-predict')
+@click.argument('pairs', type=click.Path(exists=True))
+@click.option('-m', '--trained-model', 'model_pkl', type=click.Path(exists=True), 
+              required=True, help='.pkl file containing trained model')
+@click.option('-o', '--outfile', required=True, type=str, help='Path to output .BED')
+@click.option('--raw-mu', is_flag=True, help='Report raw mutation probabilities ' +
+              '[default: log10-scale probabilities]')
+@click.option('-k', '--keep-features', is_flag=True, help='Include all features ' +
+              'from input pairs in --outbed')
+@click.option('--maxfloat', type=int, default=8, 
+              help='Maximum precision of floating-point values. [default: 8]')
+@click.option('-z', '--bgzip', is_flag=True, default=False, 
+              help='Compress output with bgzip')
+def mupredict(pairs, model_pkl, outfile, raw_mu, keep_features, maxfloat, bgzip):
+    """
+    Predict mutation rates with a trained model
+    """
+
+    mutrate.mu_predict(pairs, model_pkl, outfile, raw_mu, keep_features, 
+                       maxfloat, bgzip)
+
+
+# Query mutation rates
+@click.command(name='mu-query')
+@click.argument('pairs', type=click.Path(exists=True))
+def muquery(pairs):
+    """
+    Query a mutation rate matrix
+    """
+
+    print('DEV NOTE: athena mu-predict still in development')
+
+    pass
+

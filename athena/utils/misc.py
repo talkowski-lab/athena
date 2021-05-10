@@ -10,12 +10,14 @@ Miscellaneous utilities
 
 
 import subprocess
-from scipy.stats import chi2
+from scipy.stats import chi2, norm
+from numpy import ceil, floor
 import pybedtools
 from os import path
 import gzip
 import csv
 import pybedtools as pbt
+from tempfile import gettempdir
 
 
 def bgzip(filename):
@@ -82,6 +84,24 @@ def chromsort(contigs):
     return nc + nnc
 
 
+def bedtool_to_genome_file(bt, contig_size=500000000):
+    """
+    Creates a synthetic genome file for BEDtools operations based on the
+    contigs present in an input pbt.BedTool
+    Returns: path to genome BED
+    """
+
+    gpath = gettempdir() + '/athena_bins_tmp_genome.tsv'
+    gfile = open(gpath, 'w')
+
+    for contig in list(dict.fromkeys([f.chrom for f in bt])):
+        gfile.write('{}\t{}\n'.format(contig, contig_size))
+
+    gfile.close()
+
+    return gpath
+
+
 def hwe_chisq(record):
     """
     Chi-squared test for deviation from Hardy-Weinberg equilibrium
@@ -111,12 +131,27 @@ def hwe_chisq(record):
     return p
 
 
-def vcf2bed(vcf, breakpoints=False):
+def vcf2bed(vcf, breakpoints=False, add_ci_to_bkpts=True, ci=0.95, z_extend=6):
     """
     Convert a pysam.VariantFile (vcf) to a BED
     """
 
+    def _ci_to_sd(ci_width, ci_pct):
+        """
+        Infer standard deviation from a confidence interval
+        """
+
+        # Note: ci_width measures the full width of the CI (lower to upper bound)
+        # Thus, the total number of Z-scores covered in this interval is 2 * norm.ppf of the tail
+        zscore_width = abs(2 * norm.ppf((1 - ci_pct) / 2))
+
+        return ci_width / zscore_width
+
     intervals = ''
+    bp_bed_fmt = '{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\n'
+
+    vcf_has_cipos = 'CIPOS' in vcf.header.info.keys()
+    vcf_has_ciend = 'CIEND' in vcf.header.info.keys()
     
     for record in vcf:
 
@@ -130,17 +165,40 @@ def vcf2bed(vcf, breakpoints=False):
         var_id = record.id
         
         if breakpoints == True:
-            first_bp = '{0}\t{1}\t{2}\t{3}\n'.format(chrom, start, start + 1, var_id)
-            second_bp = '{0}\t{1}\t{2}\t{3}\n'.format(chrom_two, end, end + 1, var_id)
+            # Format left breakpoint while accounting for CIPOS
+            chrom_len = vcf.header.contigs[chrom].length
+            if add_ci_to_bkpts and vcf_has_cipos:
+                cipos = record.info.get('CIPOS', (0, 0))
+            else:
+                cipos = (0, 0)
+            left_start_sd = _ci_to_sd(2 * abs(cipos[0]), ci)
+            left_start = int(max([0, floor(start - (z_extend * left_start_sd))]))
+            left_end_sd = _ci_to_sd(2 * abs(cipos[1]), ci)
+            left_end = int(min([ceil(start + 1 + (z_extend * left_end_sd)), chrom_len]))
+            first_bp = bp_bed_fmt.format(chrom, left_start, left_end, var_id, 'POS', start, 
+                                         round(left_start_sd, 2), round(left_end_sd, 2), z_extend)
+
+            # Format right breakpoint while accounting for CIEND
+            chrom_two_len = vcf.header.contigs[chrom_two].length
+            if add_ci_to_bkpts and vcf_has_ciend:
+                ciend = record.info.get('CIEND', (0, 0))
+            else:
+                ciend = (0, 0)
+            right_start_sd = _ci_to_sd(2 * abs(ciend[0]), ci)
+            right_start = int(max([0, floor(end - (z_extend * right_start_sd))]))
+            right_end_sd = _ci_to_sd(2 * abs(ciend[1]), ci)
+            right_end = int(min([ceil(end + 1 + (z_extend * left_end_sd)), chrom_len]))
+            second_bp = bp_bed_fmt.format(chrom_two, right_start, right_end, var_id, 'END', end, 
+                                          round(right_start_sd, 2), round(right_end_sd, 2), z_extend)
+            
             new_interval = first_bp + second_bp
+        
         else:
             new_interval = '{0}\t{1}\t{2}\t{3}\n'.format(chrom, start, end, var_id)
 
         intervals = intervals + new_interval
 
-    bed = pybedtools.BedTool(intervals, from_string=True)
-
-    return bed
+    return pybedtools.BedTool(intervals, from_string=True)
 
 
 def make_default_bed_header(n_extra_cols):
@@ -223,4 +281,19 @@ def calc_binsize(bed_path, sample_n_starts=20):
             dists.add(abs(starts[k] - starts[i]))
 
     return min(list(dists))
+
+def add_names_to_bed(bedtool):
+    """
+    Add coordinate-based names to a pbt.BedTool
+    """
+
+    bt_str = ''
+
+    newrec_fmt = '{0}\t{1}\t{2}\t{0}_{1}_{2}\n'
+
+    for record in bedtool:
+        newrec = newrec_fmt.format(record.chrom, record.start, record.end)
+        bt_str += newrec
+    
+    return pbt.BedTool(bt_str, from_string=True)
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2019 Ryan L. Collins <rlcollins@g.harvard.edu>
+# Copyright (c) 2019-Present Ryan L. Collins <rlcollins@g.harvard.edu>
 # Distributed under terms of the MIT license.
 
 """
@@ -12,7 +12,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='athena',
-    version='0.1dev',
+    version='0.2',
     license='MIT',
     description='Athena: a toolkit for exploring structural variation ' + 
                 'mutation rates and dosage sensitivity',

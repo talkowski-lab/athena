@@ -76,10 +76,10 @@ def constrain_query_regions(query, columns, query_ranges):
     """
 
     def _write_single_constraint(interval):
-        c = '(`{0}` = "{1}" AND `{2}` >= {3} AND `{4}` <= {5})'
+        c = '(`{0}` = "{1}" AND `{2}` <= {3} AND `{4}` >= {5})'
         c = c.format(columns[0], interval.chrom,
-                     columns[1], interval.start,
-                     columns[2], interval.stop)
+                     columns[1], interval.stop,
+                     columns[2], interval.start)
         return c
 
     constraint = ''

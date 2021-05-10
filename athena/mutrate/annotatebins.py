@@ -12,9 +12,11 @@ Annotate a binned genome
 import csv
 import pybedtools as pbt
 import pandas as pd
+from numpy import nan
 from datetime import datetime
 from athena.mutrate import ucsc
-from athena.utils.misc import chromsort, load_snv_mus, snv_mu_from_seq, determine_filetype
+from athena.utils.misc import chromsort, load_snv_mus, snv_mu_from_seq, \
+                              determine_filetype, bedtool_to_genome_file
 from athena.utils.nuc import get_seqs_from_bt
 from athena.utils.dfutils import float_cleanup
 import pyBigWig
@@ -56,7 +58,8 @@ def add_bedtool_track(bins, track, action):
             values = [int(f[-1]) for f in bins.intersect(track, c=True, wa=True)]
 
     elif action == 'count-unique':
-        bedtool = pbt.BedTool(track).sort().merge()
+        gfile = bedtool_to_genome_file(bins)
+        bedtool = pbt.BedTool(track).sort(g=gfile).merge()
         values = [int(f[-1]) for f in bins.intersect(bedtool, c=True, wa=True)]
 
     elif action == 'coverage':
@@ -98,12 +101,12 @@ def add_bigwig_track(bins, track, action):
             else:
                 val = bigwig.stats(interval.chrom, interval.start, interval.end, operation)[0]
         else:
-            val = None
+            val = nan
         return val
 
-    values = [float(_bw_lookup(f, bigwig, operation)) for f in bins]
+    values = pd.Series([_bw_lookup(f, bigwig, operation) for f in bins]).astype(float)
 
-    return values
+    return values.tolist()
 
 
 def add_bedgraph_track(bins, track, action):
@@ -111,17 +114,19 @@ def add_bedgraph_track(bins, track, action):
     Map feature values (as list) for all bins from a bed/bedgraph
     """
 
-    # Assumes column to map is last
+    # Assumes column to map is last and sorts to match bins
+    gfile = bedtool_to_genome_file(bins)
     if isinstance(track, pbt.BedTool):
-        track = track.sort().saveas()
+        track = track.sort(g=gfile).saveas()
     else:
-        track = pbt.BedTool(track).sort().saveas()
+        track = pbt.BedTool(track).sort(g=gfile).saveas()
 
     map_col = track.field_count(1)
 
     operation = action.replace('map-', '')
 
-    values = [float(f[-1]) for f in bins.map(track, c=map_col, o=operation)]
+    values = pd.Series([f[-1] for f in bins.map(track, c=map_col, o=operation)])
+    values = values.replace({'.' : nan}).astype(float).tolist()
 
     return values
 
@@ -193,9 +198,9 @@ def add_ucsc_track(bins, db, track, action, query_regions, ucsc_ref,
 
     elif 'map-' in action:
         if isinstance(ures, pbt.BedTool):
-            bins = add_bedgraph_track(bins, ures, action)
+            values = add_bedgraph_track(bins, ures, action)
         else:
-            bins = add_bigwig_track(bins, ures, action)
+            values = add_bigwig_track(bins, ures, action)
 
     return values
 
@@ -265,10 +270,12 @@ def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref,
     # Load bins. Note: must read contents from file due to odd utf-8 decoding 
     # behavior for bgzipped BED files
     ftype = determine_filetype(bins)
+    if ftype is None:
+        ftype = 'unknown'
     if 'compressed' in ftype:
         bins = ''.join(s.decode('utf-8') for s in GzipFile(bins).readlines())
     else:
-        bins = open(bins, 'r').readlines()
+        bins = ''.join(open(bins, 'r').readlines())
     firstline = bins.split('\n')[0].split('\t')
     if firstline[0].startswith('#'):
         colnames = firstline
