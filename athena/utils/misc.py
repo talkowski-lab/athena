@@ -17,6 +17,7 @@ from os import path
 import gzip
 import csv
 import pybedtools as pbt
+from tempfile import gettempdir
 
 
 def bgzip(filename):
@@ -81,6 +82,24 @@ def chromsort(contigs):
     nnc = sorted([k for k in contigs if not _is_numeric_contig(k)])
 
     return nc + nnc
+
+
+def bedtool_to_genome_file(bt, contig_size=500000000):
+    """
+    Creates a synthetic genome file for BEDtools operations based on the
+    contigs present in an input pbt.BedTool
+    Returns: path to genome BED
+    """
+
+    gpath = gettempdir() + '/athena_bins_tmp_genome.tsv'
+    gfile = open(gpath, 'w')
+
+    for contig in list(dict.fromkeys([f.chrom for f in bt])):
+        gfile.write('{}\t{}\n'.format(contig, contig_size))
+
+    gfile.close()
+
+    return gpath
 
 
 def hwe_chisq(record):
