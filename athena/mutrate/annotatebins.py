@@ -59,7 +59,8 @@ def add_bedtool_track(bins, track, action):
 
     elif action == 'count-unique':
         gfile = bedtool_to_genome_file(bins)
-        bedtool = pbt.BedTool(track).sort(g=gfile).merge()
+        chroms = set([f.split('\t')[0] for f in open(gfile).readlines()])
+        bedtool = pbt.BedTool(track).filter(lambda f: f.chrom in chroms).sort(g=gfile).merge()
         values = [int(f[-1]) for f in bins.intersect(bedtool, c=True, wa=True)]
 
     elif action == 'coverage':
@@ -116,10 +117,11 @@ def add_bedgraph_track(bins, track, action):
 
     # Assumes column to map is last and sorts to match bins
     gfile = bedtool_to_genome_file(bins)
+    chroms = set([f.split('\t')[0] for f in open(gfile).readlines()])
     if isinstance(track, pbt.BedTool):
-        track = track.sort(g=gfile).saveas()
+        track = track.filter(lambda f: f.chrom in chroms).sort(g=gfile).saveas()
     else:
-        track = pbt.BedTool(track).sort(g=gfile).saveas()
+        track = pbt.BedTool(track).filter(lambda f: f.chrom in chroms).sort(g=gfile).saveas()
 
     map_col = track.field_count(1)
 
