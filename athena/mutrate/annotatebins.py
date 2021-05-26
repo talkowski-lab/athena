@@ -127,8 +127,11 @@ def add_bedgraph_track(bins, track, action):
 
     operation = action.replace('map-', '')
 
-    values = pd.Series([f[-1] for f in bins.map(track, c=map_col, o=operation)])
-    values = values.replace({'.' : nan}).astype(float).tolist()
+    if map_col > 3:
+        values = pd.Series([f[-1] for f in bins.map(track, c=map_col, o=operation)])
+        values = values.replace({'.' : nan}).astype(float).tolist()
+    else:
+        values = [nan] * len(bins)
 
     return values
 
@@ -325,6 +328,18 @@ def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref,
 
         # Iterate over tracks
         for track in ucsc_tracks:
+            # Ping db connection is still active (UCSC may timeout over sequential long queries)
+            # If UCSC connection has timed out, reopen new connection
+            try:
+                db.ping(True)
+            except:
+                try:
+                    db.close()
+                except:
+                    pass
+                db = ucsc.ucsc_connect(ucsc_ref)
+
+            # Submit UCSC query
             action = actions[track_counter]
             bins_df['newtrack_{}'.format(track_counter)] = \
                 add_ucsc_track(bins_bt, db, track, action, query_regions, 
