@@ -155,6 +155,8 @@ def add_pairwise_local_track(pairs_bedpe_bt, track, action, query_regions, binsi
     if ftype in 'bam cram'.split():
         track = _bam_to_bedpe(track, query_regions)
 
+    # TODO: ADD HIC SUPPORT HERE
+
     if action in 'count-pairs pairwise-coverage any-pairwise-overlap'.split():
         values = add_pairwise_bedtool_track(pairs_bedpe_bt, track, action, binsize)
 

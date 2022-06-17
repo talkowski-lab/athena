@@ -42,7 +42,8 @@ def determine_filetype(path, return_extension=False):
                 'compressed-bed' : 'bed.gz bed.bgz bed.gzip bed.bgzip'.split(),
                 'bigwig' : '.bw .bigwig .bigWig .BigWig'.split(),
                 'fasta' : '.fa .fasta'.split(),
-                'compressed-fasta' : '.fa.gz .fa.gzip .fasta.gz .fasta.gzip'.split()}
+                'compressed-fasta' : '.fa.gz .fa.gzip .fasta.gz .fasta.gzip'.split(),
+                'hic' : ['hic']}
 
     for ftype, suffs in suf_dict.items():
         suf_hits = [s for s in suffs if path.endswith(s)]
