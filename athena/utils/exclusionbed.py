@@ -29,7 +29,6 @@ def load_exclusion_bts(exclusion_list, excl_buffer=0):
     else:
         xl = pbt.BedTool(exclusion_list[0])
         if n_xl > 1:
-            import pdb; pdb.set_trace()
             xl = xl.cat(*[pbt.BedTool(x) for x in exclusion_list[1:]])
 
     return xl.each(_buffer_exclusion_list, excl_buffer=excl_buffer).merge().saveas()
