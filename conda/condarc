@@ -1,0 +1,6 @@
+channels:
+  - bioconda
+  - anaconda
+  - conda-forge
+  - defaults
+show_banner: false
