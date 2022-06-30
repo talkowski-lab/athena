@@ -67,7 +67,6 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list,
         filters = filters.split(',')
     if exclusion_list is not None:
         bl = pybedtools.BedTool(exclusion_list)
-        # bl = pd.read_csv(exclusion_list, sep='\t', names='chrom start end'.split())
 
     # Raise warning if AF or AC are missing from VCF
     for key in [af_field, 'AC']:
