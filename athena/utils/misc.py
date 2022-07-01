@@ -269,6 +269,10 @@ def calc_binsize(bed_path, sample_n_starts=20):
         line = bfile.readline().rstrip()
         if line.startswith('#'):
             continue
+        elif line == '':
+            # Have to specifically check for end-of-file when using readline()
+            # readline() returns empy string if EOF reached, causing infinite loop here
+            break
         else:
             starts.add(int(line.split('\t')[1]))
 
