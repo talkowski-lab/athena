@@ -12,12 +12,12 @@ Miscellaneous utilities
 import subprocess
 from scipy.stats import chi2, norm
 from numpy import ceil, floor
-import pybedtools
-from os import path
+import os
 import gzip
 import csv
 import pybedtools as pbt
 from tempfile import gettempdir
+import warnings
 
 
 def bgzip(filename):
@@ -199,7 +199,7 @@ def vcf2bed(vcf, breakpoints=False, add_ci_to_bkpts=True, ci=0.95, z_extend=6):
 
         intervals = intervals + new_interval
 
-    return pybedtools.BedTool(intervals, from_string=True)
+    return pbt.BedTool(intervals, from_string=True)
 
 
 def make_default_bed_header(n_extra_cols):
@@ -224,7 +224,7 @@ def load_snv_mus(snv_mus):
 
     snv_mu_dict = {}
 
-    if path.splitext(snv_mus)[1] in '.bgz .gz .gzip'.split():
+    if os.path.splitext(snv_mus)[1] in '.bgz .gz .gzip'.split():
         fin = gzip.open(snv_mus, 'rt')
     else:
         fin = open(snv_mus)
@@ -283,6 +283,7 @@ def calc_binsize(bed_path, sample_n_starts=20):
 
     return min(list(dists))
 
+
 def add_names_to_bed(bedtool):
     """
     Add coordinate-based names to a pbt.BedTool
@@ -297,4 +298,102 @@ def add_names_to_bed(bedtool):
         bt_str += newrec
     
     return pbt.BedTool(bt_str, from_string=True)
+
+
+def check_header_compliance(filename, query_bt, header_compliance='loose'):
+    """
+    Ensure all contigs from query_bt are present in header of filename
+    If header_compliance = "loose", will search for approximate matches in header
+
+    Returns a path to a BED file with appropriately-formatted query regions
+    """
+
+    query_bed = query_bt.fn
+    basename = os.path.basename(filename)
+
+    # Make list of contigs for header compliance check
+    contigs = set([x.chrom for x in query_bt])
+
+    # Get header
+    ftype = determine_filetype(filename)
+    if ftype == 'cram':
+        get_header_cmd = 'samtools view -H {} > {}.header'
+    elif ftype == 'bam':
+        get_header_cmd = 'samtools view -H {} > {}.header'
+    elif ftype == 'compressed-vcf':
+        get_header_cmd = 'tabix -H {} > {}.header'
+    else:
+        warn = 'Unable to automatically determine header type for {}; ' + \
+               'skipping header compliance check.'
+        warnings.warn(warn.format(filename))
+        return query_bt
+    get_header_cmd = get_header_cmd.format(filename, basename)
+    ecode = os.system(get_header_cmd)
+    if ecode != 0:
+        err = 'ERROR: header query returned non-zero exit status for {}'
+        exit(err.format(filename))
+
+    # Read list of eligible contigs from header
+    with open('{}.header'.format(basename)) as hfile:
+        header = [l.rstrip() for l in hfile.readlines()]
+    if ftype in 'cram bam'.split():
+        header_contigs = [l.split('\t')[1].split(':')[1] for l in header \
+                          if l.startswith('@SQ')]
+    else:
+        header_contigs = [l.split('<ID=')[1].split(',')[0] for l in header \
+                          if l.startswith('##contig')]
+
+    # Build map of contig matches
+    remap_contigs = {}
+    for contig in contigs:
+        if contig not in header_contigs:
+            if header_compliance == 'strict':
+                err = 'ERROR: contig \'{}\' in query file {} not found in ' + \
+                      'header of {}'
+                exit(err.format(contig, query_bed, filename))
+            else:
+                if contig.startswith('chr'):
+                    if re.sub('^chr', '', contig) in header_contigs:
+                        match = re.sub('^chr', '', contig)
+                        remap_contigs[contig] = match
+                    else:
+                        match = None
+                else:
+                    if 'chr{}'.format(contig) in header_contigs:
+                        match = 'chr{}'.format(contig)
+                        remap_contigs[contig] = match
+                    else:
+                        match = None
+                if match is None:
+                    msg = 'WARNING: contig \'{}\' from query file {} not found ' + \
+                          'in header of {}; continuing anyway due to ' + \
+                          '--header-compliance \'loose\'.'
+                else:
+                    msg = 'WARNING: contig \'{}\' from query file {} not found ' + \
+                          'in header of {}; matching to \'{}\' instead.'
+                    warnings.warn(msg.format(contig, query_bed, filename, match))
+
+    # Remap contigs in regions_bed based on matches in header
+    def __remap(interval, remap_contigs):
+        ochrom = interval.chrom
+        nchrom = remap_contigs.get(ochrom, ochrom)
+        if nchrom is not None:
+            interval.chrom = nchrom
+        return interval
+    query_bt = query_bt.each(__remap, remap_contigs=remap_contigs).\
+                        saveas('{}.query.bed'.format(basename))
+
+    return query_bt
+
+
+def header_compliance_cleanup(filename):
+    """
+    Cleanup temporary files from header compliance check, if any
+    """
+
+    basename = os.path.basename(filename)
+    for suffix in 'header query.bed'.split():
+        fname = '{}.{}'.format(basename, suffix)
+        if os.path.exists(fname):
+            os.remove(fname)
 

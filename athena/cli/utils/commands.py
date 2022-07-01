@@ -154,11 +154,20 @@ def makebins(genome, binsize, outfile_all, outfile_train, stepsize,
 @click.option('--updated-tsv', 'tsv_out', default='stdout', help='Path to ' +
               'output tsv with updated paths to local slices of remote data ' +
               '[default: stdout]')
-def sliceremote(urls_tsv, regions_bed, ref_fasta, local_suffix, tsv_out):
+@click.option('--header-compliance', 'header_compliance', default='loose', 
+              type=click.Choice(['loose', 'strict'], case_sensitive=False),
+              help='Behavior when checking consistency between remote file header ' +
+              'and regions_bed. If \'loose\', will search for nearest possible ' +
+              'contig match (e.g., chr1 vs. 1). If \'strict\', any contigs ' +
+              'present in regions_bed not also present in remote file header ' +
+              'will cause athena to abort.')
+def sliceremote(urls_tsv, regions_bed, ref_fasta, local_suffix, tsv_out, 
+                header_compliance):
   """
   Localize slices of remote genomic data
   """
-  utils.slice_remote(urls_tsv, regions_bed, ref_fasta, local_suffix, tsv_out)
+  utils.slice_remote(urls_tsv, regions_bed, ref_fasta, local_suffix, tsv_out, 
+                     header_compliance)
 
 
 # Plot feature distributions
