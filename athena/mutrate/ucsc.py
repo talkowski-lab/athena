@@ -40,23 +40,29 @@ def table_exists(db, table):
         return True
 
 
-def _check_hg_compliance(feature):
+def _check_hg_compliance(feature, bedpe=False):
     """
     Convert chroms in a bedtool to hg18/hg19 nomenclature
     """
 
     if 'chr' not in feature.chrom:
         feature.chrom = 'chr' + feature.chrom
+    if bedpe and 'chr' not in feature[3]:
+        feature[3] = 'chr' + feature[3]
+
     return feature
 
 
-def _check_grc_compliance(feature):
+def _check_grc_compliance(feature, bedpe=False):
     """
     Convert chroms in a bedtool to GRC nomenclature
     """
 
     if 'chr' in feature.chrom:
         feature.chrom = str(feature.chrom).replace('chr', '')
+    if bedpe and 'chr' in feature[3]:
+        feature[3] = str(feature[3]).replace('chr', '')
+
     return feature
 
 
@@ -209,6 +215,8 @@ def query_ucsc(bins, track, columns, conditions, db, action, query_ranges):
 
     elig_bed_actions = 'count count-unique count-pairs any-overlap ' + \
                        'any-pairwise-overlap coverage pairwise-coverage'
+    if 'pairwise' in action:
+        bedpe = True
 
     # Get raw data
     if 'map-' in action:
@@ -219,14 +227,14 @@ def query_ucsc(bins, track, columns, conditions, db, action, query_ranges):
                                  columns, conditions)
             # Coerce to GRC nomenclature, if necessary
             if 'chr' not in bins[0].chrom:
-                result = result.each(_check_grc_compliance)
+                result = result.each(_check_grc_compliance, bedpe=bedpe)
 
     elif action in elig_bed_actions.split():
         result = query_table(track, db, 'bed', query_ranges,
                              columns, conditions)
         # Coerce to GRC nomenclature, if necessary
         if 'chr' not in bins[0].chrom:
-            result = result.each(_check_grc_compliance).saveas()
+            result = result.each(_check_grc_compliance, bedpe=bedpe).saveas()
 
     else:
         from sys import exit

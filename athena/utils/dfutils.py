@@ -88,7 +88,7 @@ def _log_trans(df, column, strict=False):
     else:
         df[[column]] = df[[column]].apply(pd.to_numeric, errors='coerce')
         maxval = np.nanmax(df[[column]])
-        df[[column]] = np.log10(df[[column]] + maxval/1000)
+        df[[column]] = np.log10(df[[column]] + maxval/10e10)
         return df
 
 
@@ -175,7 +175,7 @@ def _boxcox_trans(df, column, strict=False):
         maxval = np.nanmax(df[[column]])
         minval = np.nanmin(df[[column]])
         if minval >= 0:
-            df[column] = boxcox(df[column] + maxval/1000)[0]
+            df[column] = boxcox(df[column] + maxval/10e10)[0]
         else:
             err = 'ERROR: negative values of "{}" are not allowed in Box-Cox ' + \
                       'transformation'

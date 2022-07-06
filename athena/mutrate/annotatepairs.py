@@ -62,11 +62,11 @@ def _split_pairtopair_by_binpairs(track_hits, pairs_bedpe_bt, counts_only=False)
         starting_value = 0
     else:
         starting_value = ''
-    split_res = {'_'.join([pair.chrom, str(pair.start), str(pair[5])]) : starting_value 
+    split_res = {'_'.join([pair[0], str(pair[1]), str(pair[5])]) : starting_value 
                  for pair in pairs_bedpe_bt}
 
     for hit in track_hits:
-        track_name = '_'.join([hit.chrom, str(hit.start), str(hit[5])])
+        track_name = '_'.join([hit[0], str(hit[1]), str(hit[5])])
         if counts_only:
             split_res[track_name] += 1
         else:

@@ -160,7 +160,7 @@ def mu_train(training_data, model_class, model_out, stats_out, cal_out, hypers,
 
     # Load and process all training BEDs
     if not quiet:
-        status_msg = '[{0}] athena mu-predict: Loading training datasets.'
+        status_msg = '[{0}] athena mu-train: Loading training datasets.'
         print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
     data_dict = mututils.load_all_beds(training_data)
 
@@ -172,7 +172,7 @@ def mu_train(training_data, model_class, model_out, stats_out, cal_out, hypers,
         random.seed(seed)
         cv_test_contigs = sorted(random.sample(data_dict.keys(), cv_k))
         if not quiet:
-            status_msg = '[{0}] athena mu-predict: Holding out data for the following ' + \
+            status_msg = '[{0}] athena mu-train: Holding out data for the following ' + \
                          '{1} contigs as cross-validation test sets: {2}'
             print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'),
                                     cv_k, ', '.join(cv_test_contigs)))
@@ -190,7 +190,7 @@ def mu_train(training_data, model_class, model_out, stats_out, cal_out, hypers,
                                    'stop_reason' : stop_reason}
             if not quiet:
                 stop_explain = interpret_stop_reason(stop_reason)
-                status_msg = '[{0}] athena mu-predict: Cross-validation results for {1} ' + \
+                status_msg = '[{0}] athena mu-train: Cross-validation results for {1} ' + \
                              'after {2} epochs (stopped due to {3}):'
                 print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
                                         test_contig, training_info['epochs_trained'], stop_explain))
@@ -219,7 +219,7 @@ def mu_train(training_data, model_class, model_out, stats_out, cal_out, hypers,
     final_model.eval()
     final_stats = eval_model(final_model(all_features), all_labels)
     if not quiet:
-        status_msg = '[{0}] athena mu-predict: Training performance for full model ' + \
+        status_msg = '[{0}] athena mu-train: Training performance for full model ' + \
                      'after {1} epochs:'
         print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), avg_epochs))
         for key, value in final_stats.items():
