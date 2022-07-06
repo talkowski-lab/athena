@@ -34,7 +34,7 @@ def initialize_torch_model(model_class, features, params={}):
     if model_class == 'logit':
         model = LogitModel(features.shape[1]).float()
         optimizer = torch.optim.SGD(model.parameters(), 
-                                    lr=params.get('lr', 0.01),
+                                    lr=params.get('lr', 0.001),
                                     weight_decay=params.get('l2', 0))
         criterion = torch.nn.BCELoss()
 
@@ -58,7 +58,7 @@ def train_torch_model(features, labels, model, optimizer, criterion, epochs=10e6
         check_test_set = True
         test_features = earlyStopping['features']
         test_labels = earlyStopping['labels']
-        monitor = earlyStopping.get('monitor', 5)
+        monitor = earlyStopping.get('monitor', 100)
         test_eps = earlyStopping.get('train_eps', 10e-8)
         stop_by_test_eps = earlyStopping.get('stop_by_test_eps', False)
         overfit_at_epoch = epochs

@@ -165,6 +165,7 @@ def mu_train(training_data, model_class, model_out, stats_out, cal_out, hypers,
     data_dict = mututils.load_all_beds(training_data)
 
     # Perform cross-validation, if optioned
+    cv_res = {}
     if hypers['cv_eval']:
 
         # Assign chromosomes to be held out for cross-validation
@@ -178,7 +179,6 @@ def mu_train(training_data, model_class, model_out, stats_out, cal_out, hypers,
                                     cv_k, ', '.join(cv_test_contigs)))
 
         # Evaluate training & testing performance with cross-validation
-        cv_res = {}
         for test_contig in cv_test_contigs:
             fit_model, training_info, train_stats, test_stats = \
                 contig_cv(data_dict, test_contig, model_class, hypers)
@@ -231,7 +231,7 @@ def mu_train(training_data, model_class, model_out, stats_out, cal_out, hypers,
         torch.save(final_model, model_out)
 
     # Compile & save training stats, if optioned
-    if stats_out  is not None:
+    if stats_out is not None:
         stats_df = make_stats_df(cv_res, final_stats, avg_epochs)
         stats_df = dfutils.float_cleanup(stats_df, maxfloat=maxfloat, start_idx=6)
         stats_df.to_csv(stats_out, sep='\t', index=False)

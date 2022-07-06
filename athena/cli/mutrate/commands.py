@@ -450,12 +450,14 @@ def countsv(bins, sv, outfile, bin_format, binsize, comparison, probs, sv_ci,
               'as test sets for cross-validation]')
 @click.option('--l2', type=float, default=0.1, help='Magnitude of L2 regularization ' +
               'to apply during model training [default: 0.1]')
+@click.option('--max-epochs', type=int, default=10e6, help='Maximum number of ' + 
+              'training epochs. [default: 10e6]')
 @click.option('--seed', type=int, default=2022, help='Set random seed [default: 2022]')
 @click.option('--maxfloat', type=int, default=8, 
               help='Maximum precision of floating-point values. [default: 8]')
 @click.option('-q', '--quiet', is_flag=True, help='Do not print progress to stdout')
 def mutrain(training_data, model_class, model_out, stats_out, cal_out, no_cv, 
-            max_cv_k, l2, seed, maxfloat, quiet):
+            max_cv_k, l2, max_epochs, seed, maxfloat, quiet):
     """
     Train mutation rate model
     """
@@ -467,6 +469,7 @@ def mutrain(training_data, model_class, model_out, stats_out, cal_out, no_cv,
     hypers = {'cv_eval' : cv_eval,
               'max_cv_k' : max_cv_k,
               'l2' : l2,
+              'max_epochs' : max_epochs,
               'seed' : seed}
 
     mutrate.mu_train(training_data, model_class, model_out, stats_out, cal_out, 
