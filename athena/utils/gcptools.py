@@ -12,8 +12,12 @@ Functions for interfacing with Google Cloud Storage objects within Athena
 import os
 import subprocess
 from datetime import datetime
-from athena.utils.misc import determine_filetype
+from athena.utils.misc import determine_filetype, check_header_compliance, \
+                              header_compliance_cleanup
 from sys import stdout
+import warnings
+import pybedtools as pbt
+import re
 
 
 def _find_remote_index(url, ftype):
@@ -122,17 +126,24 @@ def _authenticate_remote_streaming():
         pass
 
 
+def _determine_slice_method(ftype):
+    """
+    Determine what tool to call for remote slicing
+    """
+
+    if ftype in 'cram bam'.split():
+        return 'samtools'
+    else:
+        return 'tabix'
+
+
 def _localize_remote_slice(url_info, regions_bed, ref_fasta=None):
     """
     Localize a slice of a remote file using samtools or tabix
     """
 
     ftype = url_info['ftype']
-
-    if ftype in 'cram bam'.split():
-        slice_method = 'samtools'
-    else:
-        slice_method = 'tabix'
+    slice_method = _determine_slice_method(ftype)
 
     if ftype == 'cram':
         loc_cmd = 'samtools view -C -M -T ' + ref_fasta + ' -L {} {} > {}'
@@ -183,7 +194,7 @@ def _update_inputs_tsv(urls_dict, tsv_out):
 
 
 def slice_remote(urls_tsv, regions_bed, ref_fasta=None, local_suffix='local_slice', 
-                 tsv_out='stdout'):
+                 tsv_out='stdout', header_compliance='loose'):
     """
     Localize slices of remote genomic data
     """
@@ -199,8 +210,15 @@ def slice_remote(urls_tsv, regions_bed, ref_fasta=None, local_suffix='local_slic
 
     # Localize each slice
     for url_info in urls_dict.values():
-        _localize_remote_slice(url_info, regions_bed, ref_fasta)
+        query_bt = \
+            check_header_compliance(url_info['url'], pbt.BedTool(regions_bed),
+                                    header_compliance)
+        _localize_remote_slice(url_info, query_bt.fn, ref_fasta)
 
     # Write updated paths to tsv_out
     _update_inputs_tsv(urls_dict, tsv_out)
+
+    # Cleanup
+    for url_info in urls_dict.values():
+        header_compliance_cleanup(url_info['url'])
 

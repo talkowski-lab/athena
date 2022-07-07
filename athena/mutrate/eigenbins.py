@@ -122,7 +122,7 @@ def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_mod
                                 exp_transform, square_transform,  boxcox_transform, 
                                 fill_missing, return_fills=True)
     feature_names = df_annos.columns.tolist()
-
+    
     # Scale all columns
     if precomp_model is None:
         scaler = StandardScaler().fit(df_annos)

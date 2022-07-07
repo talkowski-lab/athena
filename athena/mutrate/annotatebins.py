@@ -16,7 +16,9 @@ from numpy import nan
 from datetime import datetime
 from athena.mutrate import ucsc
 from athena.utils.misc import chromsort, load_snv_mus, snv_mu_from_seq, \
-                              determine_filetype, bedtool_to_genome_file
+                              determine_filetype, bedtool_to_genome_file, \
+                              check_header_compliance, header_compliance_cleanup
+import copy
 from athena.utils.nuc import get_seqs_from_bt
 from athena.utils.dfutils import float_cleanup
 import pyBigWig
@@ -41,7 +43,7 @@ def parse_track_file(infile):
     return tracks, actions, names
 
 
-def add_bedtool_track(bins, track, action):
+def add_bedtool_track(bins, track, action, header_compliance='loose'):
     """
     Extract feature values (as list) for all bins vs. a single BedTool (or BAM/CRAM)
     """
@@ -50,29 +52,39 @@ def add_bedtool_track(bins, track, action):
         ftype = determine_filetype(track)
     else:
         ftype = None
+
+    # Check for header inconsistencies for indexed tracks
+    if ftype in 'bam cram compressed-vcf'.split():
+        query_bins = copy.deepcopy(bins)
+        query_bins = check_header_compliance(track, query_bins, header_compliance)
+    else:
+        query_bins = bins
     
     if action == 'count':
         if ftype in 'bam cram'.split():
-            values = [int(f[-4]) for f in bins.coverage(track, sorted=True)]
+            values = [int(f[-4]) for f in query_bins.coverage(track, sorted=True)]
         else:
-            values = [int(f[-1]) for f in bins.intersect(track, c=True, wa=True)]
+            values = [int(f[-1]) for f in query_bins.intersect(track, c=True, wa=True)]
 
     elif action == 'count-unique':
-        gfile = bedtool_to_genome_file(bins)
+        gfile = bedtool_to_genome_file(query_bins)
         chroms = set([f.split('\t')[0] for f in open(gfile).readlines()])
         bedtool = pbt.BedTool(track).filter(lambda f: f.chrom in chroms).sort(g=gfile).merge()
-        values = [int(f[-1]) for f in bins.intersect(bedtool, c=True, wa=True)]
+        values = [int(f[-1]) for f in query_bins.intersect(bedtool, c=True, wa=True)]
 
     elif action == 'coverage':
-        values = [float(f[-1]) for f in bins.coverage(track)]
+        values = [float(f[-1]) for f in query_bins.coverage(track)]
 
     elif action == 'any-overlap':
         values = [min([1, int(f[-1])]) for f \
-                  in bins.intersect(track, c=True, wa=True)]
+                  in query_bins.intersect(track, c=True, wa=True)]
 
     else:
         from sys import exit
         exit('INPUT ERROR: --action {0} not recognized.'.format(action))
+
+    if ftype in 'bam cram compressed-vcf'.split():
+        header_compliance_cleanup(track)
 
     return values
 
@@ -232,11 +244,11 @@ def add_snv_mu(bins, fasta, snv_mus, maxfloat):
     bins.saveas()
     def _increment_bin(feat, dist=1, start=True, end=True):
         if start:
-            feat.start = feat.start - dist
+            feat.start = max([0, feat.start - dist])
         if end:
             feat.end = feat.end + dist
         return feat
-    buffbins = pbt.BedTool(bins).each(_increment_bin)
+    buffbins = pbt.BedTool(bins).each(_increment_bin).saveas()
 
     snv_mu_dict = load_snv_mus(snv_mus)
 
