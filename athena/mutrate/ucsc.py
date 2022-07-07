@@ -215,7 +215,7 @@ def query_ucsc(bins, track, columns, conditions, db, action, query_ranges):
 
     elig_bed_actions = 'count count-unique count-pairs any-overlap ' + \
                        'any-pairwise-overlap coverage pairwise-coverage'
-    bedpe = 'pairwise' in action:
+    bedpe = 'pairwise' in action
 
     # Get raw data
     if 'map-' in action:
