@@ -54,28 +54,26 @@ def eval_model(pred, labels, cutoff=0.5, noise=10e-10):
     return stats
 
 
-def contig_cv(data_dict, test_contig, model_class, hypers):
+def contig_cv(data_dict, test_contig, hypers):
     """
     Wrapper to conduct a single round of training & testing for a held-out chromosome
     """
 
-    seed = hypers['seed']
-
     # Split data
     train_contigs = [k for k in data_dict.keys() if k != test_contig]
     train_features, train_labels = \
-        mututils.pool_tensors(data_dict, xchroms=test_contig, seed=seed)
+        mututils.pool_tensors(data_dict, xchroms=test_contig, seed=hypers['seed'])
     test_features, test_labels = \
-        mututils.pool_tensors(data_dict, xchroms=train_contigs, seed=seed)
+        mututils.pool_tensors(data_dict, xchroms=train_contigs, seed=hypers['seed'])
 
     # Fit model with early stopping
     model, optimizer, criterion = \
-        models.initialize_torch_model(model_class, train_features, hypers)
+        models.initialize_torch_model(hypers['model_class'], train_features, hypers)
     earlyStopping = {'features' : test_features, 'labels' : test_labels, 'monitor' : 5}
     fit_model, training_info = \
         models.train_torch_model(train_features, train_labels, model, optimizer, 
                                  criterion, stop_early=True, 
-                                 earlyStopping=earlyStopping, seed=seed)
+                                 earlyStopping=earlyStopping, seed=hypers['seed'])
 
     # # Compute training & testing statistics
     model.eval()
@@ -149,14 +147,17 @@ def make_calibration_df(model, all_features, all_labels):
     return cal_df
 
 
-def mu_train(training_data, model_class, model_out, stats_out, cal_out, hypers, 
-             maxfloat, quiet):
+def mu_train(training_data, hypers, model_out, stats_out, cal_out, maxfloat, quiet):
     """
     Master function to train a single mutation rate model
     """
 
-    # Unpack certain hypers
-    seed = hypers['seed']
+    # Report hyperparameters
+    if not quiet:
+        status_msg = '[{0}] athena mu-train: Loaded configuration as follows:'
+        print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
+        for key, value in sorted(hypers.items()):
+            print('  - {}: {}'.format(key, value))
 
     # Load and process all training BEDs
     if not quiet:
@@ -170,7 +171,7 @@ def mu_train(training_data, model_class, model_out, stats_out, cal_out, hypers,
 
         # Assign chromosomes to be held out for cross-validation
         cv_k = min([len(data_dict), hypers['max_cv_k']])
-        random.seed(seed)
+        random.seed(hypers['seed'])
         cv_test_contigs = sorted(random.sample(data_dict.keys(), cv_k))
         if not quiet:
             status_msg = '[{0}] athena mu-train: Holding out data for the following ' + \
@@ -181,7 +182,7 @@ def mu_train(training_data, model_class, model_out, stats_out, cal_out, hypers,
         # Evaluate training & testing performance with cross-validation
         for test_contig in cv_test_contigs:
             fit_model, training_info, train_stats, test_stats = \
-                contig_cv(data_dict, test_contig, model_class, hypers)
+                contig_cv(data_dict, test_contig, hypers)
             stop_reason = training_info['stop_reason']
             cv_res[test_contig] = {'model' : fit_model,
                                    'train_stats' : train_stats,
@@ -204,13 +205,13 @@ def mu_train(training_data, model_class, model_out, stats_out, cal_out, hypers,
     # After cross-validation, train model on all data for best predictive power
     # Stop after median number of epochs from CV, above
     all_features, all_labels = \
-        mututils.pool_tensors(data_dict, xchroms=[], seed=seed)
+        mututils.pool_tensors(data_dict, xchroms=[], seed=hypers['seed'])
     model, optimizer, criterion = \
-        models.initialize_torch_model(model_class, all_features, hypers)
+        models.initialize_torch_model(all_features, hypers)
     if hypers['cv_eval']:
         avg_epochs = int(median([vals['epochs'] for vals in cv_res.values()]))
     else:
-        avg_epochs = hypers.get('max_epochs', 10e6)
+        avg_epochs = hypers['max_epochs']
     final_model, training_info = \
         models.train_torch_model(all_features, all_labels, model, optimizer, 
                                  criterion, stop_early=False, epochs=avg_epochs)

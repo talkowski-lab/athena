@@ -18,6 +18,7 @@ from sys import exit
 from gzip import GzipFile
 from datetime import datetime
 import athena.utils.dfutils as dfutils
+import json
 
 
 @click.command(name='annotate-bins')
@@ -434,8 +435,11 @@ def countsv(bins, sv, outfile, bin_format, binsize, comparison, probs, sv_ci,
 @click.option('--training-data', type=click.Path(exists=True), required=True,
               help='Two-column .tsv of contig name and path to training BED ' +
               'file for each contig')
-@click.option('-m', '--model', 'model_class', required=True, 
-              type=click.Choice(['logit']), help='Specify model architecture')
+@click.option('--config', help='Model configuration .json file. If provided, ' +
+              'will override any redudant command-line arguments. This is the ' +
+              'recommended approach for model & hyperparameter specification.')
+@click.option('-m', '--model', 'model_class', type=click.Choice(['logit']), 
+              help='Specify model architecture')
 @click.option('-o', '--model-outfile', 'model_out', type=str, help='Path to ' +
               '.pkl file for trained model')
 @click.option('--stats-outfile', 'stats_out', type=str, help='Path to output .tsv ' +
@@ -450,30 +454,36 @@ def countsv(bins, sv, outfile, bin_format, binsize, comparison, probs, sv_ci,
               'as test sets for cross-validation]')
 @click.option('--l2', type=float, default=0.1, help='Magnitude of L2 regularization ' +
               'to apply during model training [default: 0.1]')
+@click.option('--learning-rate', type=float, default=0.001, help='Learning ' +
+              'rate of optimizer. [default: 0.001]')
 @click.option('--max-epochs', type=int, default=10e6, help='Maximum number of ' + 
               'training epochs. [default: 10e6]')
 @click.option('--seed', type=int, default=2022, help='Set random seed [default: 2022]')
 @click.option('--maxfloat', type=int, default=8, 
               help='Maximum precision of floating-point values. [default: 8]')
 @click.option('-q', '--quiet', is_flag=True, help='Do not print progress to stdout')
-def mutrain(training_data, model_class, model_out, stats_out, cal_out, no_cv, 
-            max_cv_k, l2, max_epochs, seed, maxfloat, quiet):
+def mutrain(training_data, config, model_class, model_out, stats_out, cal_out, no_cv, 
+            max_cv_k, l2, learning_rate, max_epochs, seed, maxfloat, quiet):
     """
     Train mutation rate model
     """
 
-    cv_eval = not no_cv
-
-    # All hyperparameters are passed via dict (hypers)
-    # Hyperparameters not passed at this stage will be populated within mutrate.mu_train()
-    hypers = {'cv_eval' : cv_eval,
+    # All hyperparamters are passed to mu_train() as a dict
+    # Hyperparameters are loaded from --config .json if provided, otherwise are
+    # inferred based on command-line arguments
+    hypers = {'model_class' : model_class,
+              'cv_eval' : not no_cv,
               'max_cv_k' : max_cv_k,
               'l2' : l2,
               'max_epochs' : max_epochs,
-              'seed' : seed}
+              'lr' : learning_rate,
+              'seed' : seed,}
+    if config is not None:
+      with open(config) as cfile:
+        hypers.update(json.load(cfile))
 
-    mutrate.mu_train(training_data, model_class, model_out, stats_out, cal_out, 
-                     hypers, maxfloat, quiet)
+    mutrate.mu_train(training_data, hypers, model_out, stats_out, cal_out, 
+                     maxfloat, quiet)
 
 
 # Apply a pre-trained mutation rate model to predict mutation rates for new bins
@@ -507,7 +517,7 @@ def muquery(pairs):
     Query a mutation rate matrix
     """
 
-    print('DEV NOTE: athena mu-predict still in development')
+    print('DEV NOTE: athena mu-query still in development')
 
     pass
 

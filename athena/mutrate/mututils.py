@@ -13,22 +13,32 @@ import torch
 import csv
 
 
-def load_bed(bed_path, as_tensor=True):
+def load_bed(bed_path, as_tensor=True, strict=False):
     """
     Load a single BED of bins with SV counts and features as a tuple of Tensors (features, labels)
+    If 'sv' column not present in bed_path, will return None for labels
     """
 
     df = dfutils.load_feature_df(bed_path)
 
     if 'sv' not in df.columns:
-        err = 'ERROR: required column "sv" not found in input BED {}'
-        from sys import exit
-        exit(err.format(bed_path))
+        if strict:
+            err = 'ERROR: required column "sv" not found in input BED {}'
+            from sys import exit
+            exit(err.format(bed_path))
+        else:
+            warn = 'WARNING: column "sv" not found in input BED {}; only loading features'
+            print(warn.format(bed_path))
+            if as_tensor:
+                features = torch.tensor(df.values).float()
+                labels = None
 
-    if as_tensor:
-        features = torch.tensor(df.drop('sv', axis=1).values).float()
-        labels = torch.tensor(df[['sv']].values).float()
-        return features, labels
+    else:
+        if as_tensor:
+            features = torch.tensor(df.drop('sv', axis=1).values).float()
+            labels = torch.tensor(df[['sv']].values).float()
+    
+    return features, labels
 
 
 def load_all_beds(pairs_tsv, as_tensor=True):
