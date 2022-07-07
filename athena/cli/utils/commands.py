@@ -13,7 +13,6 @@ import click
 from athena import utils
 
 
-
 # VCF filtering
 @click.command(name='vcf-filter')
 @click.argument('vcf', type=click.Path(exists=True))
@@ -189,7 +188,7 @@ def sliceremote(urls_tsv, regions_bed, ref_fasta, local_suffix, tsv_out,
 @click.option('--square-transform', multiple=True, help='List of column names to ' +
               'be square-transformed prior to plotting.')
 @click.option('--boxcox-transform', multiple=True, help='List of column names to ' +
-              'be Box-Cox power-transformed prior to decomposition. Note that ' + 
+              'be Box-Cox power-transformed prior to plotting. Note that ' + 
               'the exact transformation is performed on x+max(x/1000).')
 def featurehists(bed, png_prefix, skip_cols, trans_tsv, log_transform, sqrt_transform,
                  exp_transform, square_transform, boxcox_transform):
@@ -209,6 +208,48 @@ def featurehists(bed, png_prefix, skip_cols, trans_tsv, log_transform, sqrt_tran
                       exp_transform, square_transform, boxcox_transform)
 
 
+# Gather summary statistics from feature distributions
+@click.command(name='feature-stats')
+@click.argument('BED', type=click.Path(exists=True))
+@click.option('-o', '--outfile', default='stdout', 
+              help='Output .tsv [default: stdout]')
+@click.option('--ignore-columns', 'skip_cols', type=int, default=3, 
+              help='Skip the first N columns for plotting')
+@click.option('--transformations-tsv', 'trans_tsv', help='Two-column tsv listing ' + 
+              'all transformations to be applied. Will supersede any transformations ' +
+              'passed as arguments.')
+@click.option('--log-transform', multiple=True, help='List of column names to ' +
+              'be log-transformed. Note that the exact transformation is ' +
+              'log10(x+max(x/1000)).')
+@click.option('--sqrt-transform', multiple=True, help='List of column names to ' +
+              'be square root-transformed.')
+@click.option('--exp-transform', multiple=True, help='List of column names to ' +
+              'be exponential-transformed.')
+@click.option('--square-transform', multiple=True, help='List of column names to ' +
+              'be square-transformed.')
+@click.option('--boxcox-transform', multiple=True, help='List of column names to ' +
+              'be Box-Cox power-transformed. Note that the exact transformation ' +
+              'is performed on x+max(x/1000).')
+@click.option('--maxfloat', type=int, default=8, 
+              help='Maximum precision of floating-point values. [default: 8]')
+def featurestats(bed, outfile, skip_cols, trans_tsv, log_transform, sqrt_transform,
+                 exp_transform, square_transform, boxcox_transform, maxfloat):
+  """
+  Compute feature distributions
+  """
+
+  if trans_tsv is not None:
+      trans = utils.dfutils._load_transformations(trans_tsv)
+      log_transform = trans.get('log', [])
+      sqrt_transform = trans.get('sqrt', [])
+      exp_transform = trans.get('exp', [])
+      square_transform = trans.get('square', [])
+      boxcox_transform = trans.get('boxcox', [])
+
+  utils.feature_stats(bed, outfile, skip_cols, log_transform, sqrt_transform,
+                      exp_transform, square_transform, boxcox_transform, maxfloat)
+
+
 # Transform binwise annotations collected with annotate-bins
 @click.command(name='transform')
 @click.argument('BED_in', type=click.Path(exists=True))
@@ -219,17 +260,17 @@ def featurehists(bed, png_prefix, skip_cols, trans_tsv, log_transform, sqrt_tran
               'all transformations to be applied. Will supersede any transformations ' +
               'passed as arguments.')
 @click.option('--log-transform', multiple=True, help='List of column names to ' +
-              'be log-transformed prior to plotting. Note that the exact ' +
-              'transformation is log10(x+max(x/1000)).')
+              'be log-transformed. Note that the exact transformation is ' + 
+              'log10(x+max(x/1000)).')
 @click.option('--sqrt-transform', multiple=True, help='List of column names to ' +
-              'be square root-transformed prior to plotting.')
+              'be square root-transformed.')
 @click.option('--exp-transform', multiple=True, help='List of column names to ' +
-              'be exponential-transformed prior to plotting.')
+              'be exponential-transformed.')
 @click.option('--square-transform', multiple=True, help='List of column names to ' +
-              'be square-transformed prior to plotting.')
+              'be square-transformed.')
 @click.option('--boxcox-transform', multiple=True, help='List of column names to ' +
-              'be Box-Cox power-transformed prior to decomposition. Note that ' + 
-              'the exact transformation is performed on x+max(x/1000).')
+              'be Box-Cox power-transformed. Note that the exact transformation ' +
+              'is performed on x+max(x/1000).')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output with bgzip')
 def transform(bed_in, bed_out, skip_cols, trans_tsv, log_transform, sqrt_transform,

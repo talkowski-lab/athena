@@ -305,7 +305,7 @@ def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions,
               'passed as arguments.')
 @click.option('--log-transform', multiple=True, help='List of column names to ' +
               'be log-transformed prior to decomposition. Note that the exact ' +
-              'transformation is log10(x+max(x/1000)).')
+              'transformation is log10(x+max(x/10e10)).')
 @click.option('--sqrt-transform', multiple=True, help='List of column names to ' +
               'be square root-transformed prior to decomposition.')
 @click.option('--exp-transform', multiple=True, help='List of column names to ' +
@@ -314,7 +314,7 @@ def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions,
               'be square-transformed prior to decomposition.')
 @click.option('--boxcox-transform', multiple=True, help='List of column names to ' +
               'be Box-Cox power-transformed prior to decomposition. Note that ' + 
-              'the exact transformation is applied to x+max(x/1000).')
+              'the exact transformation is applied to x+max(x/10e10).')
 @click.option('--whiten', is_flag=True, default=False,
               help='"Whiten" eigenfeatures with standard normalization.')
 @click.option('--fill-missing', type=str, default='0',

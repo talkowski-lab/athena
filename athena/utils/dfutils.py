@@ -18,6 +18,7 @@ from sklearn.exceptions import DataConversionWarning
 import pandas as pd
 from os import path
 from athena.utils import bgzip as bgz
+import sys
 
 
 def _load_transformations(trans_tsv):
@@ -264,4 +265,47 @@ def transform_df(bed_in, bed_out, first_column=3, log_transform=None,
 
     if bgzip:
         bgz(bed_out)
+
+
+def feature_stats(bed, out_path, skip_cols, log_transform, sqrt_transform,
+                  exp_transform, square_transform, boxcox_transform, maxfloat):
+    """
+    Compute distribution statistics for all bin features
+    """
+
+    # Open connection to output file
+    if out_path in 'stdout - /dev/stdout'.split():
+        outfile = sys.stdout
+    else:
+        outfile = open(out_path, 'w')
+
+    # Load & sanitize features
+    df = load_feature_df(bed, skip_cols, log_transform, sqrt_transform,
+                         exp_transform, square_transform, 
+                         boxcox_transform)
+
+    # Collect feature summaries
+    def _summarize_feature(vals):
+        # Preprocess
+        is_na = vals.isna()
+        vals = vals[~is_na]
+        q1 = vals.quantile(0.25)
+        q3 = vals.quantile(0.75)
+        # Compute & return values
+        return [(~is_na).sum(), is_na.sum(), vals.mean(), vals.std(), 
+                vals.median(), vals.mad(), vals.min(), vals.max(),
+                q1, q3, q3-q1]
+    fstats = df.apply(_summarize_feature).transpose().reset_index(drop=True)
+
+    # Format output dataframe
+    col_idxs = [i + skip_cols + 1 for i in range(df.shape[1])]
+    out_df = pd.concat([pd.DataFrame(df.columns), pd.DataFrame(col_idxs), fstats], 
+                       axis=1, ignore_index=True)
+    out_df = float_cleanup(out_df, maxfloat, 1)
+    header = '#feature column_idx n_obs n_na mean stdev median mad min max q1 q3 iqr'
+    out_df.columns = header.split()
+
+    # Write to outfile
+    out_df.to_csv(outfile, sep='\t', index=False, header=True)
+    outfile.close()
 

@@ -29,8 +29,10 @@ utilscli.add_command(utils_commands.breakpointconfidence)
 utilscli.add_command(utils_commands.makebins)
 utilscli.add_command(utils_commands.pairbins)
 utilscli.add_command(utils_commands.featurehists)
+utilscli.add_command(utils_commands.featurestats)
 utilscli.add_command(utils_commands.transform)
 utilscli.add_command(utils_commands.sliceremote)
+
 
 # Mutation rate modeling functions
 @click.group(name='Mutation rate modeling')
@@ -47,6 +49,7 @@ mutratecli.add_command(mutrate_commands.countsv)
 mutratecli.add_command(mutrate_commands.mutrain)
 mutratecli.add_command(mutrate_commands.mupredict)
 mutratecli.add_command(mutrate_commands.muquery)
+
 
 # Dosage sensitivity modeling functions
 @click.group(name='Dosage sensitivity modeling')
