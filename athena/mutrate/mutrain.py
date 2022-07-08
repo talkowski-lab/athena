@@ -68,7 +68,7 @@ def contig_cv(data_dict, test_contig, hypers):
 
     # Fit model with early stopping
     model, optimizer, criterion = \
-        models.initialize_torch_model(hypers['model_class'], train_features, hypers)
+        models.initialize_torch_model(train_features, hypers)
     earlyStopping = {'features' : test_features, 'labels' : test_labels, 'monitor' : 5}
     fit_model, training_info = \
         models.train_torch_model(train_features, train_labels, model, optimizer, 

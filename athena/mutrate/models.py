@@ -26,10 +26,12 @@ class LogitModel(torch.nn.Module):
         return y_pred
 
 
-def initialize_torch_model(model_class, features, params={}):
+def initialize_torch_model(features, params={}):
     """
     Initialize PyTorch model, optimizer, and loss criteria based on command-line input
     """
+
+    model_class = params.get('model_class')
 
     if model_class == 'logit':
         model = LogitModel(features.shape[1]).float()
