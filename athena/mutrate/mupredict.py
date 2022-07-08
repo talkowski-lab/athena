@@ -35,7 +35,7 @@ def mu_predict(pairs, model_pkl, outfile, raw_mu, keep_features, maxfloat, bgzip
 
     # Predict mutation rates for all bins
     with torch.no_grad():
-        preds = model(feats).numpy()
+        preds = model(feats).numpy() * model.scaling_factor
         if not raw_mu:
             preds = log10(preds)
         preds_df = pd.DataFrame(preds, columns=['mu'])

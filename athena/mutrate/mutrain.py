@@ -157,6 +157,8 @@ def mu_train(training_data, hypers, model_out, stats_out, cal_out, maxfloat, qui
         status_msg = '[{0}] athena mu-train: Loaded configuration as follows:'
         print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
         for key, value in sorted(hypers.items()):
+            if value is None:
+                value = 'Not specified'
             print('  - {}: {}'.format(key, value))
 
     # Load and process all training BEDs
@@ -218,13 +220,24 @@ def mu_train(training_data, hypers, model_out, stats_out, cal_out, maxfloat, qui
 
     # Evaluate training performance of final model
     final_model.eval()
-    final_stats = eval_model(final_model(all_features), all_labels)
+    final_preds = final_model(all_features)
+    final_stats = eval_model(final_preds, all_labels)
     if not quiet:
         status_msg = '[{0}] athena mu-train: Training performance for full model ' + \
                      'after {1} epochs:'
         print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), avg_epochs))
         for key, value in final_stats.items():
             print('    * {} = {}'.format(key, round(value, 6)))
+
+    # Determine scaling factor to export with saved model
+    if hypers.get('scale_predictions', True):
+        pred_sum = float(final_preds.sum())
+        n_training_pairs = len(all_labels)
+        if hypers.get('n_gw_pairs') is None:
+            hypers['n_gw_pairs'] = n_training_pairs
+        pct_genome_trained = n_training_pairs / hypers['n_gw_pairs']
+        scale_factor = (1 / pred_sum) * pct_genome_trained * hypers.get('gw_mu_prior', 1)
+        final_model.scaling_factor = scale_factor
 
     # Save trained model to model_out, if optioned
     # (note: model is intentionally exported in .eval() mode)

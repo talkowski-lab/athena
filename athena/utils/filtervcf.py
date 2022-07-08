@@ -15,7 +15,7 @@ from os import path
 import pybedtools
 import numpy as np
 from athena.utils.misc import bgzip as bgz
-from athena.utils.misc import hwe_chisq
+from athena.utils.math import hwe_chisq
 
 
 def filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list, 

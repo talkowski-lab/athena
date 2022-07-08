@@ -454,6 +454,15 @@ def countsv(bins, sv, outfile, bin_format, binsize, comparison, probs, sv_ci,
               'as test sets for cross-validation]')
 @click.option('--l2', type=float, default=0.1, help='Magnitude of L2 regularization ' +
               'to apply during model training [default: 0.1]')
+@click.option('--no-scaling', 'no_scaling', is_flag=True, help='Do not scale ' +
+              'mutation rates [default: scale mutation rates genome-wide]')
+@click.option('--n-gw-pairs', 'n_gw_pairs', type=int, help='Number of total bin-pairs ' +
+              ' for prediction genome-wide. If provided, will modify mutation rate ' +
+              'scaling to reflect genome-wide probabilities. Disabled by ' +
+              '--no-scaling. [default: scale to # of pairs in --training-data]')
+@click.option('--gw-mu-prior', type=float, default=1, help='Expected number of ' +
+              'true de novo SVs per genome per generation. Disabled by ' +
+              '--no-scaling. [default: 1]')
 @click.option('--learning-rate', type=float, default=0.001, help='Learning ' +
               'rate of optimizer. [default: 0.001]')
 @click.option('--max-epochs', type=int, default=10e6, help='Maximum number of ' + 
@@ -463,7 +472,8 @@ def countsv(bins, sv, outfile, bin_format, binsize, comparison, probs, sv_ci,
               help='Maximum precision of floating-point values. [default: 8]')
 @click.option('-q', '--quiet', is_flag=True, help='Do not print progress to stdout')
 def mutrain(training_data, config, model_class, model_out, stats_out, cal_out, no_cv, 
-            max_cv_k, l2, learning_rate, max_epochs, seed, maxfloat, quiet):
+            max_cv_k, l2, no_scaling, n_gw_pairs, gw_mu_prior, learning_rate, 
+            max_epochs, seed, maxfloat, quiet):
     """
     Train mutation rate model
     """
@@ -477,7 +487,10 @@ def mutrain(training_data, config, model_class, model_out, stats_out, cal_out, n
               'l2' : l2,
               'max_epochs' : max_epochs,
               'lr' : learning_rate,
-              'seed' : seed,}
+              'seed' : seed,
+              'scale_predictions' : not no_scaling,
+              'n_gw_pairs' : n_gw_pairs,
+              'gw_mu_prior' : gw_mu_prior}
     if config is not None:
       with open(config) as cfile:
         hypers.update(json.load(cfile))
@@ -512,12 +525,25 @@ def mupredict(pairs, model_pkl, outfile, raw_mu, keep_features, maxfloat, bgzip)
 # Query mutation rates
 @click.command(name='mu-query')
 @click.argument('pairs', type=click.Path(exists=True))
-def muquery(pairs):
+@click.argument('query')
+@click.option('-o', '--outfile', required=True, type=str, help='Path to output .tsv')
+@click.option('--group-by', help='Specify key by which queries will be grouped. ' +
+              '[default: "gene_name" (for GTF query), fourth column (for BED4+) ' +
+              'or chrom_start_end (for BED3)]')
+@click.option('--raw-mu-input', 'raw_mu_in', is_flag=True, help='Input mutation ' +
+              'rate matrix contains raw mutation probabilities [default: assume ' +
+              'log10-scale probabilities]')
+@click.option('--raw-mu-output', 'raw_mu_out', is_flag=True, help='Report raw ' +
+              'mutation probabilities [default: log10-scale probabilities]')
+@click.option('--maxfloat', type=int, default=8, 
+              help='Maximum precision of floating-point values. [default: 8]')
+@click.option('-z', '--gzip', is_flag=True, default=False, 
+              help='Compress output with gzip')
+def muquery(pairs, query, outfile, group_by, raw_mu_in, raw_mu_out, maxfloat, gzip):
     """
     Query a mutation rate matrix
     """
 
-    print('DEV NOTE: athena mu-query still in development')
-
-    pass
+    mutrate.mu_query(pairs, query, outfile, group_by, raw_mu_in, raw_mu_out, 
+                     maxfloat, gzip)
 

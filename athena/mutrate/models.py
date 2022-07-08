@@ -20,10 +20,12 @@ class LogitModel(torch.nn.Module):
     def __init__(self, n_features):
         super(LogitModel, self).__init__()
         self.linear = torch.nn.Linear(n_features, 1)
+        self.scaling_factor = 1
 
     def forward(self, x):
         y_pred = torch.sigmoid(self.linear(x))
         return y_pred
+
 
 
 def initialize_torch_model(features, params={}):

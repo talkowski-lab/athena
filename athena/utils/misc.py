@@ -10,7 +10,6 @@ Miscellaneous utilities
 
 
 import subprocess
-from scipy.stats import chi2, norm
 from numpy import ceil, floor
 import os
 import gzip
@@ -18,6 +17,8 @@ import csv
 import pybedtools as pbt
 from tempfile import gettempdir
 import warnings
+from operator import not_
+from athena.utils.math import ci_to_sd
 
 
 def bgzip(filename):
@@ -103,50 +104,10 @@ def bedtool_to_genome_file(bt, contig_size=500000000):
     return gpath
 
 
-def hwe_chisq(record):
-    """
-    Chi-squared test for deviation from Hardy-Weinberg equilibrium
-    """
-
-    # Get observed genotype counts
-    aa_obs = record.info['N_HOMREF']
-    Aa_obs = record.info['N_HET']
-    AA_obs = record.info['N_HOMALT']
-    total_N = aa_obs + Aa_obs + AA_obs
-
-    # Get expected genotype counts
-    a_freq = ((2 * aa_obs) + Aa_obs) / (2 * total_N)
-    A_freq = ((2 * AA_obs) + Aa_obs) / (2 * total_N)
-    aa_exp = (a_freq ** 2) * total_N
-    Aa_exp = 2 * a_freq * A_freq * total_N
-    AA_exp = (A_freq ** 2) * total_N
-
-    # Calculate chi-square stats for each genotype
-    aa_chisq = ((aa_obs - aa_exp) ** 2) / aa_exp
-    Aa_chisq = ((Aa_obs - Aa_exp) ** 2) / Aa_exp
-    AA_chisq = ((AA_obs - AA_exp) ** 2) / AA_exp
-    chisq = aa_chisq + Aa_chisq + AA_chisq
-
-    p = 1 - chi2.cdf(chisq, 1)
-
-    return p
-
-
 def vcf2bed(vcf, breakpoints=False, add_ci_to_bkpts=True, ci=0.95, z_extend=6):
     """
     Convert a pysam.VariantFile (vcf) to a BED
     """
-
-    def _ci_to_sd(ci_width, ci_pct):
-        """
-        Infer standard deviation from a confidence interval
-        """
-
-        # Note: ci_width measures the full width of the CI (lower to upper bound)
-        # Thus, the total number of Z-scores covered in this interval is 2 * norm.ppf of the tail
-        zscore_width = abs(2 * norm.ppf((1 - ci_pct) / 2))
-
-        return ci_width / zscore_width
 
     intervals = ''
     bp_bed_fmt = '{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\n'
@@ -172,9 +133,9 @@ def vcf2bed(vcf, breakpoints=False, add_ci_to_bkpts=True, ci=0.95, z_extend=6):
                 cipos = record.info.get('CIPOS', (0, 0))
             else:
                 cipos = (0, 0)
-            left_start_sd = _ci_to_sd(2 * abs(cipos[0]), ci)
+            left_start_sd = ci_to_sd(2 * abs(cipos[0]), ci)
             left_start = int(max([0, floor(start - (z_extend * left_start_sd))]))
-            left_end_sd = _ci_to_sd(2 * abs(cipos[1]), ci)
+            left_end_sd = ci_to_sd(2 * abs(cipos[1]), ci)
             left_end = int(min([ceil(start + 1 + (z_extend * left_end_sd)), chrom_len]))
             first_bp = bp_bed_fmt.format(chrom, left_start, left_end, var_id, 'POS', start, 
                                          round(left_start_sd, 2), round(left_end_sd, 2), z_extend)
@@ -185,9 +146,9 @@ def vcf2bed(vcf, breakpoints=False, add_ci_to_bkpts=True, ci=0.95, z_extend=6):
                 ciend = record.info.get('CIEND', (0, 0))
             else:
                 ciend = (0, 0)
-            right_start_sd = _ci_to_sd(2 * abs(ciend[0]), ci)
+            right_start_sd = ci_to_sd(2 * abs(ciend[0]), ci)
             right_start = int(max([0, floor(end - (z_extend * right_start_sd))]))
-            right_end_sd = _ci_to_sd(2 * abs(ciend[1]), ci)
+            right_end_sd = ci_to_sd(2 * abs(ciend[1]), ci)
             right_end = int(min([ceil(end + 1 + (z_extend * left_end_sd)), chrom_len]))
             second_bp = bp_bed_fmt.format(chrom_two, right_start, right_end, var_id, 'END', end, 
                                           round(right_start_sd, 2), round(right_end_sd, 2), z_extend)
@@ -400,4 +361,34 @@ def header_compliance_cleanup(filename):
         fname = '{}.{}'.format(basename, suffix)
         if os.path.exists(fname):
             os.remove(fname)
+
+
+def check_contig_naming_scheme(bed):
+    """
+    Check the contig naming scheme of a BED file (passed as string of path)
+    """
+
+    # Check first 10 lines of BED for snapshot of contig names
+    if 'compressed' in determine_filetype(bed):
+        f_bed = gzip.open(bed, 'rt')
+    else:
+        f_bed = open(bed)
+    chroms = set()
+    for i in range(10):
+        chrom = f_bed.readline().rstrip().split('\t')[0]
+        if '#' in chrom:
+            continue
+        chroms.add(chrom)
+    f_bed.close()
+
+    # Infer contig naming scheme
+    has_chrom = ['chr' in k for k in chroms]
+    if all(has_chrom):
+        return 'has_chr'
+    elif all(map(not_, has_chrom)):
+        return 'no_chr'
+    else:
+        err = 'ERROR: inconsistent contig naming scheme detected in {}'
+        from sys import exit
+        exit(err.format(bed))
 
