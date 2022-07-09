@@ -17,6 +17,7 @@ import pybedtools as pbt
 import pysam
 import pandas as pd
 from numpy import log10, nansum, nanmax
+from sys import stdout
 
 
 def _get_query_entity_name(feature, query_group_by):
@@ -115,7 +116,7 @@ def mu_query(pairs, query, outfile, query_group_by, ovr_frac, raw_mu_in,
     query_results = float_cleanup(query_results, maxfloat, 1)
     
     # Write query to output file
-    if gzip and not outfile.endswith('.gz'):
-        outfile = outfile + '.gz'
+    if outfile in 'stdout /dev/stdout -'.split():
+        outfile = stdout
     query_results.to_csv(outfile, header=True, index=False, sep='\t')
 

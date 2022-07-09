@@ -370,66 +370,6 @@ def annodecomp(bins, bins_outfile, parameters_outfile, precomp_model, components
                            skip_columns, maxfloat, max_pcs, stats, prefix, bgzip)
 
 
-# Intersect SVs and bins
-@click.command(name='count-sv')
-@click.argument('bins', type=click.Path(exists=True))
-@click.argument('sv', type=click.Path(exists=True))
-@click.argument('outfile')
-@click.option('--bin-format', type=click.Choice(['1D', '2D']),
-              help='Specify format of input: bins (1D) or bin-pairs (2D) [default: 2D]',
-              default='2D', required=True)
-@click.option('--binsize', type=int, default=None, help='Size of bins [default: ' +
-              'infer from spacing of start coordinates]')
-@click.option('--comparison', type=click.Choice(['overlap', 'breakpoint']),
-              help='Specification of SV-to-bin comparison [default: breakpoint]',
-              default='breakpoint', required=True)
-@click.option('-p', '--probabilities', 'probs', is_flag=True, default=False,
-              help='Annotate probability of SVs instead of count [default: count SVs]')
-@click.option('--sv-ci', type=float, default=0.95, help='Specify confidence interval ' + 
-              'implied by CIPOS and CIEND if present in SV VCF input [default: 0.95]')
-@click.option('--maxfloat', type=int, default=8, 
-              help='Maximum precision of floating-point values. [default: 8]')
-@click.option('-z', '--bgzip', is_flag=True, default=False, 
-              help='Compress output with bgzip')
-def countsv(bins, sv, outfile, bin_format, binsize, comparison, probs, sv_ci, 
-            maxfloat, bgzip):
-    """
-    Intersect SV and 1D bins or 2D bin-pairs
-    """
-
-    # Ensure --bin-format is specified
-    if bin_format not in '1D 2D'.split():
-        if bin_format is None:
-            err = 'INPUT ERROR: --bin-format is required. Options: ' + \
-                  '"overlap" or "breakpoint".'
-        else:
-            err = 'INPUT ERROR: --bin-format "{0}" not recognized. Options: ' + \
-                  '"1D" or "2D".'
-        exit(err.format(bin_format))
-    paired = (bin_format == '2D')
-
-    # Ensure --comparison is specified
-    if comparison not in 'overlap breakpoint'.split():
-        if comparison is None:
-            err = 'INPUT ERROR: --comparison is required. Options: ' + \
-                  '"overlap" or "breakpoint".'
-        else:
-            err = 'INPUT ERROR: --comparison "{0}" not recognized. Options: ' + \
-                  '"overlap" or "breakpoint".'
-        exit(err.format(comparison))
-    breakpoints = (comparison == 'breakpoint')
-
-    # Warn if --probabilities specified with --comparison breakpoint
-    if probs and comparison == 'overlap':
-      status_msg = '[{0}] athena count-sv: --probabilities is not compatible ' + \
-                   'with --comparison "overlap". Returning binary indicator of ' + \
-                   'overlap/non-overlap instead.'
-      print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
-
-    mutrate.count_sv(bins, sv, outfile, paired, binsize, breakpoints, probs, 
-                     sv_ci, maxfloat, bgzip)
-
-
 # Train mutation rate model
 @click.command(name='mu-train')
 @click.option('--training-data', type=click.Path(exists=True), required=True,

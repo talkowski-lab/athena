@@ -10,7 +10,7 @@
 
 
 import click
-from athena import utils
+from athena import utils, dosage
 
 
 # VCF filtering
@@ -248,6 +248,88 @@ def featurestats(bed, outfile, skip_cols, trans_tsv, log_transform, sqrt_transfo
 
   utils.feature_stats(bed, outfile, skip_cols, log_transform, sqrt_transform,
                       exp_transform, square_transform, boxcox_transform, maxfloat)
+
+
+# Intersect SVs and bins (or BED/GTF)
+@click.command(name='count-sv')
+@click.argument('sv', type=click.Path(exists=True))
+@click.argument('query', type=click.Path(exists=True))
+@click.option('-o', '--outfile', default='stdout', help='Path to output file. ' +
+              '[default: stdout]')
+@click.option('--query-format', type=click.Choice(['bins', 'pairs', 'bed', 'gtf']),
+              help='Specify format of input: athena bins, athena bin-pairs ' +
+              ', generic bed, or gtf [default: pairs]',
+              default='pairs', required=True)
+@click.option('--binsize', type=int, default=None, help='Size of bins. Only used ' +
+              'for --query-format "bins" or "pairs". [default: infer from spacing ' +
+              'of start coordinates]')
+@click.option('--comparison', type=click.Choice(['overlap', 'breakpoint']),
+              help='Specification of SV-to-query interval comparison. Currently ' +
+              'ignored for --query-format "bed" and "gtf". [default: "breakpoint" ' +
+              'for --query-format "bins" or "pairs" and "overlap" for "bed" or "gtf"]', 
+              default='breakpoint', required=True)
+@click.option('-p', '--probabilities', 'probs', is_flag=True, default=False,
+              help='Annotate probability of SVs instead of count. Ignored for ' +
+              '--query-format "bed" and "gtf". [default: count SVs]')
+@click.option('--group-by', help='Specify key by which queries will be grouped. ' +
+              'Only used for --query-format "bed" or "gtf". [default: "gene_name" ' +
+              '(for GTF query), fourth column (for BED4+) or chrom_start_end ' +
+              '(for BED3)]')
+@click.option('-f', '--fraction', 'ovr_frac', type=float, default=10e-9, 
+              help='Minimum overlap of query interval required for SV to be ' +
+              'counted. Only used for --query-format "bed" or "gtf". ' +
+              '[default: any overlap]')
+@click.option('--sv-ci', type=float, default=0.95, help='Specify confidence interval ' + 
+              'implied by CIPOS and CIEND if present in SV VCF input. Ignored for ' +
+              '--query-format "bed" and "gtf". [default: 0.95]')
+@click.option('--maxfloat', type=int, default=8, 
+              help='Maximum precision of floating-point values. [default: 8]')
+@click.option('-z', '--bgzip', is_flag=True, default=False, 
+              help='Compress output with bgzip (or gzip for --query-format "bed" ' +
+              'or "gtf")')
+def countsv(sv, query, outfile, query_format, binsize, comparison, probs, group_by,
+            ovr_frac, sv_ci, maxfloat, bgzip):
+    """
+    Intersect SVs with query regions
+    """
+
+    # Ensure --query-format is specified
+    if query_format not in 'bins pairs bed gtf'.split():
+        if query_format is None:
+            err = 'INPUT ERROR: --query-format is required. Options: ' + \
+                  '"bins", "pairs", "bed", or "gtf".'
+        else:
+            err = 'INPUT ERROR: --query-format "{0}" not recognized. Options: ' + \
+                  '"bins", "pairs", "bed", or "gtf".'
+        exit(err.format(bin_format))
+
+    # Ensure --comparison is specified
+    if comparison not in 'overlap breakpoint'.split():
+        if comparison is None:
+            err = 'INPUT ERROR: --comparison is required. Options: ' + \
+                  '"overlap" or "breakpoint".'
+        else:
+            err = 'INPUT ERROR: --comparison "{0}" not recognized. Options: ' + \
+                  '"overlap" or "breakpoint".'
+        exit(err.format(comparison))
+
+    # Warn if --probabilities specified with --comparison overlap
+    if probs and comparison == 'overlap':
+      status_msg = '[{0}] athena count-sv: --probabilities is not compatible ' + \
+                   'with --comparison "overlap". Returning binary indicator of ' + \
+                   'overlap/non-overlap instead.'
+      print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
+
+    # Call mutrate.count_sv_in_bins if --query-format is bins or pairs
+    if query_format in 'bins pairs'.split():
+      paired = (bin_format == 'pairs')
+      breakpoints = (comparison == 'breakpoint')
+      mutrate.count_sv_in_bins(sv, query, outfile, paired, binsize, breakpoints, 
+                               probs, sv_ci, maxfloat, bgzip)
+
+    # Otherwise, call dosage.count_sv_generic
+    else:
+      dosage.count_sv_generic(sv, query, outfile, group_by, ovr_frac, maxfloat, bgzip)
 
 
 # Transform binwise annotations collected with annotate-bins
