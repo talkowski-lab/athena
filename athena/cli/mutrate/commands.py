@@ -530,20 +530,26 @@ def mupredict(pairs, model_pkl, outfile, raw_mu, keep_features, maxfloat, bgzip)
 @click.option('--group-by', help='Specify key by which queries will be grouped. ' +
               '[default: "gene_name" (for GTF query), fourth column (for BED4+) ' +
               'or chrom_start_end (for BED3)]')
+@click.option('-f', '--fraction', 'ovr_frac', type=float, help='Minimum overlap ' +
+              'of query interval required for mutation rate to be counted. ' +
+              '[default: any overlap]')
 @click.option('--raw-mu-input', 'raw_mu_in', is_flag=True, help='Input mutation ' +
               'rate matrix contains raw mutation probabilities [default: assume ' +
               'log10-scale probabilities]')
 @click.option('--raw-mu-output', 'raw_mu_out', is_flag=True, help='Report raw ' +
               'mutation probabilities [default: log10-scale probabilities]')
+@click.option('-e', '--epsilon', type=float, default=10e-50, help='Smallest value ' +
+              'to report. [default: 10e-50]')
 @click.option('--maxfloat', type=int, default=8, 
               help='Maximum precision of floating-point values. [default: 8]')
 @click.option('-z', '--gzip', is_flag=True, default=False, 
               help='Compress output with gzip')
-def muquery(pairs, query, outfile, group_by, raw_mu_in, raw_mu_out, maxfloat, gzip):
+def muquery(pairs, query, outfile, group_by, ovr_frac, raw_mu_in, raw_mu_out, 
+            epsilon, maxfloat, gzip):
     """
     Query a mutation rate matrix
     """
 
-    mutrate.mu_query(pairs, query, outfile, group_by, raw_mu_in, raw_mu_out, 
-                     maxfloat, gzip)
+    mutrate.mu_query(pairs, query, outfile, group_by, ovr_frac, raw_mu_in, 
+                     raw_mu_out, epsilon, maxfloat, gzip)
 

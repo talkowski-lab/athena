@@ -16,7 +16,7 @@ import re
 import pybedtools as pbt
 import pysam
 import pandas as pd
-from numpy import log10, nansum
+from numpy import log10, nansum, nanmax
 
 
 def _get_query_entity_name(feature, query_group_by):
@@ -37,8 +37,8 @@ def _get_query_entity_name(feature, query_group_by):
     return query_name
 
 
-def mu_query(pairs, query, outfile, query_group_by, raw_mu_in, raw_mu_out, 
-             maxfloat, gzip):
+def mu_query(pairs, query, outfile, query_group_by, ovr_frac, raw_mu_in, 
+             raw_mu_out, epsilon, maxfloat, gzip):
     """
     Query a mutation rate matrix
     """
@@ -49,7 +49,7 @@ def mu_query(pairs, query, outfile, query_group_by, raw_mu_in, raw_mu_out,
     # Preprocess query
     if path.exists(query):
         query_ftype = determine_filetype(query)
-        if query_ftype in 'bed gtf'.split():
+        if query_ftype in 'bed gtf compressed-bed compressed-gtf'.split():
             qbt = pbt.BedTool(query)
         else:
             err = 'Determined file type "{}" for query file {}; this file type ' + \
@@ -82,8 +82,20 @@ def mu_query(pairs, query, outfile, query_group_by, raw_mu_in, raw_mu_out,
 
             # Query mutation rate matrix
             qstr = '{}:{}-{}'.format(qint.chrom, qint.start, qint.end)
-            qres = [i.rstrip().split('\t') for i in mutrates.fetch(qstr)]
-            qres = pd.DataFrame(qres, columns=qres_columns)
+            qhits = [i for i in mutrates.fetch(qstr)]
+
+            # Enforce minimum overlap fraction, if optioned
+            if ovr_frac is not None:
+                qres_bt = pbt.BedTool('\n'.join(qhits), from_string=True)
+                qint_bt = pbt.BedTool(re.sub('[\:-]', '\t', qstr) + '\n', from_string=True)
+                qres_hits = qres_bt.intersect(qint_bt, F=ovr_frac, wa=True, u=True)
+                qres = qres_hits.to_dataframe(names=qres_columns)
+
+            else:
+                qres = [i.rstrip().split('\t') for i in qhits]
+                qres = pd.DataFrame(qres, columns=qres_columns)    
+
+            # Add passing mutation rate cells to dict of results dataframes
             query_results_dfs[query_name] = \
                 pd.concat([query_results_dfs[query_name], qres], ignore_index=True)
 
@@ -94,7 +106,7 @@ def mu_query(pairs, query, outfile, query_group_by, raw_mu_in, raw_mu_out,
         mu_df = mu_df.loc[keepers, :].copy()
         if not raw_mu_in:
             mu_df.loc[:, 'mu'] = 10 ** mu_df['mu'].astype(float)
-        mu_sum = nansum(mu_df['mu'])
+        mu_sum = nanmax([epsilon, nansum(mu_df['mu'])])
         if not raw_mu_out:
             mu_sum = log10(mu_sum)
         query_results[qname] = mu_sum
@@ -103,5 +115,7 @@ def mu_query(pairs, query, outfile, query_group_by, raw_mu_in, raw_mu_out,
     query_results = float_cleanup(query_results, maxfloat, 1)
     
     # Write query to output file
+    if gzip and not outfile.endswith('.gz'):
+        outfile = outfile + '.gz'
     query_results.to_csv(outfile, header=True, index=False, sep='\t')
 
