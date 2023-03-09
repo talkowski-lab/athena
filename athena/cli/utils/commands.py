@@ -46,9 +46,9 @@ from athena import utils, dosage
 @click.option('--pHWE', 'HWE', type=float, default=None, 
               help='Minimum Hardy-Weinberg equilibrium p-value to include ' + 
                    '[default: Do not filter on HWE]')
-@click.option('--af-field', 'af_field', default='AF',
-              help='INFO field to use for allele frequency filtering. ' +
-              '[default: AF]')
+@click.option('--af-field', 'af_field', multiple=True, default=['AF'],
+              help='INFO field(s) to use for allele frequency filtering. ' +
+              'Can be specified multiple times. [default: AF]')
 @click.option('--keep-infos', 'keep_infos', default=None,
               help='INFO fields to retain in output VCF (comma-separated). ' + 
                    'Will always retain the following: END, CHR2, SVTYPE, SVLEN. ' + 
@@ -64,7 +64,7 @@ def filtervcf(vcf, out, chroms, xchroms, svtypes, exclusion_list, minAF, maxAF,
     """
     utils.filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list, 
                      minAF, maxAF, minAC, maxAC, minAN, filters, 
-                     minQUAL, maxQUAL, HWE, af_field, keep_infos, bgzip)
+                     minQUAL, maxQUAL, HWE, list(af_field), keep_infos, bgzip)
 
 
 # Gathers size distributions per SV class from a VCF
