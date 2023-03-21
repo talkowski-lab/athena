@@ -15,12 +15,12 @@ from os import path
 import pybedtools
 import numpy as np
 from athena.utils.misc import bgzip as bgz
-from athena.utils.misc import hwe_chisq
+from athena.utils.math import hwe_chisq
 
 
 def filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list, 
                minAF, maxAF, minAC, maxAC, minAN, filters, 
-               minQUAL, maxQUAL, HWE, af_field, keep_infos, bgzip):
+               minQUAL, maxQUAL, HWE, af_fields, keep_infos, bgzip):
 
     # Open connection to input VCF
     if vcf in '- stdin'.split():
@@ -69,7 +69,7 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list,
         bl = pybedtools.BedTool(exclusion_list)
 
     # Raise warning if AF or AC are missing from VCF
-    for key in [af_field, 'AC']:
+    for key in af_fields + ['AC']:
         if key not in header.info.keys():
             import warnings
             warning_message = '{0} not found in VCF INFO, so {0}-based filtering ' + \
@@ -102,10 +102,11 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list,
             continue
 
         # Filter by AF/AC
-        if af_field in record.info.keys():
-            if minAF is not None:
-                if np.nansum(record.info[af_field]) < minAF:
-                    continue
+        for af_field in af_fields:
+            if af_field in record.info.keys():
+                if minAF is not None:
+                    if np.nansum(record.info[af_field]) < minAF:
+                        continue
             if maxAF is not None:
                 if np.nansum(record.info[af_field]) > maxAF:
                     continue        

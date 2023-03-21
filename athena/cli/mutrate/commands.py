@@ -370,66 +370,6 @@ def annodecomp(bins, bins_outfile, parameters_outfile, precomp_model, components
                            skip_columns, maxfloat, max_pcs, stats, prefix, bgzip)
 
 
-# Intersect SVs and bins
-@click.command(name='count-sv')
-@click.argument('bins', type=click.Path(exists=True))
-@click.argument('sv', type=click.Path(exists=True))
-@click.argument('outfile')
-@click.option('--bin-format', type=click.Choice(['1D', '2D']),
-              help='Specify format of input: bins (1D) or bin-pairs (2D) [default: 2D]',
-              default='2D', required=True)
-@click.option('--binsize', type=int, default=None, help='Size of bins [default: ' +
-              'infer from spacing of start coordinates]')
-@click.option('--comparison', type=click.Choice(['overlap', 'breakpoint']),
-              help='Specification of SV-to-bin comparison [default: breakpoint]',
-              default='breakpoint', required=True)
-@click.option('-p', '--probabilities', 'probs', is_flag=True, default=False,
-              help='Annotate probability of SVs instead of count [default: count SVs]')
-@click.option('--sv-ci', type=float, default=0.95, help='Specify confidence interval ' + 
-              'implied by CIPOS and CIEND if present in SV VCF input [default: 0.95]')
-@click.option('--maxfloat', type=int, default=8, 
-              help='Maximum precision of floating-point values. [default: 8]')
-@click.option('-z', '--bgzip', is_flag=True, default=False, 
-              help='Compress output with bgzip')
-def countsv(bins, sv, outfile, bin_format, binsize, comparison, probs, sv_ci, 
-            maxfloat, bgzip):
-    """
-    Intersect SV and 1D bins or 2D bin-pairs
-    """
-
-    # Ensure --bin-format is specified
-    if bin_format not in '1D 2D'.split():
-        if bin_format is None:
-            err = 'INPUT ERROR: --bin-format is required. Options: ' + \
-                  '"overlap" or "breakpoint".'
-        else:
-            err = 'INPUT ERROR: --bin-format "{0}" not recognized. Options: ' + \
-                  '"1D" or "2D".'
-        exit(err.format(bin_format))
-    paired = (bin_format == '2D')
-
-    # Ensure --comparison is specified
-    if comparison not in 'overlap breakpoint'.split():
-        if comparison is None:
-            err = 'INPUT ERROR: --comparison is required. Options: ' + \
-                  '"overlap" or "breakpoint".'
-        else:
-            err = 'INPUT ERROR: --comparison "{0}" not recognized. Options: ' + \
-                  '"overlap" or "breakpoint".'
-        exit(err.format(comparison))
-    breakpoints = (comparison == 'breakpoint')
-
-    # Warn if --probabilities specified with --comparison breakpoint
-    if probs and comparison == 'overlap':
-      status_msg = '[{0}] athena count-sv: --probabilities is not compatible ' + \
-                   'with --comparison "overlap". Returning binary indicator of ' + \
-                   'overlap/non-overlap instead.'
-      print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
-
-    mutrate.count_sv(bins, sv, outfile, paired, binsize, breakpoints, probs, 
-                     sv_ci, maxfloat, bgzip)
-
-
 # Train mutation rate model
 @click.command(name='mu-train')
 @click.option('--training-data', type=click.Path(exists=True), required=True,
@@ -454,6 +394,15 @@ def countsv(bins, sv, outfile, bin_format, binsize, comparison, probs, sv_ci,
               'as test sets for cross-validation]')
 @click.option('--l2', type=float, default=0.1, help='Magnitude of L2 regularization ' +
               'to apply during model training [default: 0.1]')
+@click.option('--no-scaling', 'no_scaling', is_flag=True, help='Do not scale ' +
+              'mutation rates [default: scale mutation rates genome-wide]')
+@click.option('--n-gw-pairs', 'n_gw_pairs', type=int, help='Number of total bin-pairs ' +
+              ' for prediction genome-wide. If provided, will modify mutation rate ' +
+              'scaling to reflect genome-wide probabilities. Disabled by ' +
+              '--no-scaling. [default: scale to # of pairs in --training-data]')
+@click.option('--gw-mu-prior', type=float, default=1, help='Expected number of ' +
+              'true de novo SVs per genome per generation. Disabled by ' +
+              '--no-scaling. [default: 1]')
 @click.option('--learning-rate', type=float, default=0.001, help='Learning ' +
               'rate of optimizer. [default: 0.001]')
 @click.option('--max-epochs', type=int, default=10e6, help='Maximum number of ' + 
@@ -463,7 +412,8 @@ def countsv(bins, sv, outfile, bin_format, binsize, comparison, probs, sv_ci,
               help='Maximum precision of floating-point values. [default: 8]')
 @click.option('-q', '--quiet', is_flag=True, help='Do not print progress to stdout')
 def mutrain(training_data, config, model_class, model_out, stats_out, cal_out, no_cv, 
-            max_cv_k, l2, learning_rate, max_epochs, seed, maxfloat, quiet):
+            max_cv_k, l2, no_scaling, n_gw_pairs, gw_mu_prior, learning_rate, 
+            max_epochs, seed, maxfloat, quiet):
     """
     Train mutation rate model
     """
@@ -477,7 +427,10 @@ def mutrain(training_data, config, model_class, model_out, stats_out, cal_out, n
               'l2' : l2,
               'max_epochs' : max_epochs,
               'lr' : learning_rate,
-              'seed' : seed,}
+              'seed' : seed,
+              'scale_predictions' : not no_scaling,
+              'n_gw_pairs' : n_gw_pairs,
+              'gw_mu_prior' : gw_mu_prior}
     if config is not None:
       with open(config) as cfile:
         hypers.update(json.load(cfile))
@@ -512,12 +465,31 @@ def mupredict(pairs, model_pkl, outfile, raw_mu, keep_features, maxfloat, bgzip)
 # Query mutation rates
 @click.command(name='mu-query')
 @click.argument('pairs', type=click.Path(exists=True))
-def muquery(pairs):
+@click.argument('query')
+@click.option('-o', '--outfile', required=True, type=str, help='Path to output .tsv')
+@click.option('--group-by', help='Specify key by which queries will be grouped. ' +
+              '[default: "gene_name" (for GTF query), fourth column (for BED4+) ' +
+              'or chrom_start_end (for BED3)]')
+@click.option('-f', '--fraction', 'ovr_frac', type=float, help='Minimum overlap ' +
+              'of query interval required for mutation rate to be counted. ' +
+              '[default: any overlap]')
+@click.option('--raw-mu-input', 'raw_mu_in', is_flag=True, help='Input mutation ' +
+              'rate matrix contains raw mutation probabilities [default: assume ' +
+              'log10-scale probabilities]')
+@click.option('--raw-mu-output', 'raw_mu_out', is_flag=True, help='Report raw ' +
+              'mutation probabilities [default: log10-scale probabilities]')
+@click.option('-e', '--epsilon', type=float, default=10e-50, help='Smallest value ' +
+              'to report. [default: 10e-50]')
+@click.option('--maxfloat', type=int, default=8, 
+              help='Maximum precision of floating-point values. [default: 8]')
+@click.option('-z', '--gzip', is_flag=True, default=False, 
+              help='Compress output with gzip')
+def muquery(pairs, query, outfile, group_by, ovr_frac, raw_mu_in, raw_mu_out, 
+            epsilon, maxfloat, gzip):
     """
     Query a mutation rate matrix
     """
 
-    print('DEV NOTE: athena mu-query still in development')
-
-    pass
+    mutrate.mu_query(pairs, query, outfile, group_by, ovr_frac, raw_mu_in, 
+                     raw_mu_out, epsilon, maxfloat, gzip)
 

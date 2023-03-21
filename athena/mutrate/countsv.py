@@ -19,6 +19,7 @@ from athena.utils import dfutils
 import pandas as pd
 import numpy as np
 from scipy.stats import norm
+from sys import stdout
 
 
 def _load_sv_from_bed(sv_in, breakpoints=False):
@@ -213,10 +214,10 @@ def parse_breakpoint_hits(hits, paired, probs):
     return bkpt_res
 
 
-def count_sv(bins_in, sv_in, outfile, paired, binsize, breakpoints, probs, sv_ci, 
-             maxfloat, bgzip):
+def count_sv_in_bins(sv_in, bins_in, outfile, paired, binsize, breakpoints, 
+                     probs, sv_ci, maxfloat, bgzip):
     """
-    Master function to annotate bins_in with count (or probability) of SVs
+    Main function to annotate bins_in with count (or probability) of SVs
     """
 
     # Load bins, split bin coordinates from annotations, and retain header
@@ -270,11 +271,16 @@ def count_sv(bins_in, sv_in, outfile, paired, binsize, breakpoints, probs, sv_ci
     out_df.columns = bins_header[:3] + ['sv'] + bins_header[3:]
 
     # Save bins with SV counts
-    if 'compressed' in determine_filetype(outfile):
-        outfile = path.splitext(outfile)[0]
+    if outfile in 'stdout /dev/stdout -'.split():
+        outfile = stdout
+        outfile_is_stdout = True
+    else:
+        outfile_is_stdout = False
+        if 'compressed' in determine_filetype(outfile):
+            outfile = path.splitext(outfile)[0]
     out_df.to_csv(outfile, sep='\t', header=True, index=False)
 
     # Bgzip bins, if optioned
-    if bgzip:
+    if bgzip and not outfile_is_stdout:
         bgz(outfile)
 
