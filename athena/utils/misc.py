@@ -243,6 +243,10 @@ def calc_binsize(bed_path, sample_n_starts=20):
 
     starts = list(starts)
 
+    if len(starts) < 2:
+        msg = 'Not enough entries in {} to automatically determine binsize. Exiting.'
+        exit(msg.format(bed_path))
+
     dists = set()
     for i in range(len(starts)):
         for k in range(i+1, len(starts)):

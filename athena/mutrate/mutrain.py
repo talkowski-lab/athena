@@ -236,7 +236,7 @@ def mu_train(training_data, hypers, model_out, stats_out, cal_out, maxfloat, qui
         if hypers.get('n_gw_pairs') is None:
             hypers['n_gw_pairs'] = n_training_pairs
         pct_genome_trained = n_training_pairs / hypers['n_gw_pairs']
-        scale_factor = (1 / pred_sum) * pct_genome_trained * hypers.get('gw_mu_prior', 1)
+        scale_factor = (1 / pred_sum) * pct_genome_trained * (hypers.get('gw_mu_prior', 1) / 2)
         final_model.scaling_factor = scale_factor
 
     # Save trained model to model_out, if optioned
