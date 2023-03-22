@@ -27,6 +27,9 @@ def vcf_stats(vcf, quantiles):
     vcfbt = pybedtools.BedTool(vcf)
     dists = list(vcfbt.closest(vcfbt, d=True, t='first', N=True).to_dataframe().iloc[:, -1])
 
+    # Print number of records in VCF
+    print('\nSV count: {:,}'.format(len(vcfbt)))
+
     # Print SV spacing quantiles
     print('\nSV spacing quantiles:' +
           '\n---------------------')

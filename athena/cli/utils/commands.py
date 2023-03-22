@@ -10,7 +10,7 @@
 
 
 import click
-from athena import utils, dosage
+from athena import utils, mutrate, dosage
 
 
 # VCF filtering
@@ -301,7 +301,7 @@ def countsv(sv, query, outfile, query_format, binsize, comparison, probs, group_
         else:
             err = 'INPUT ERROR: --query-format "{0}" not recognized. Options: ' + \
                   '"bins", "pairs", "bed", or "gtf".'
-        exit(err.format(bin_format))
+        exit(err.format(query_format))
 
     # Ensure --comparison is specified
     if comparison not in 'overlap breakpoint'.split():
@@ -322,7 +322,7 @@ def countsv(sv, query, outfile, query_format, binsize, comparison, probs, group_
 
     # Call mutrate.count_sv_in_bins if --query-format is bins or pairs
     if query_format in 'bins pairs'.split():
-      paired = (bin_format == 'pairs')
+      paired = (query_format == 'pairs')
       breakpoints = (comparison == 'breakpoint')
       mutrate.count_sv_in_bins(sv, query, outfile, paired, binsize, breakpoints, 
                                probs, sv_ci, maxfloat, bgzip)
