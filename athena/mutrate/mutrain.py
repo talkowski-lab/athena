@@ -167,6 +167,10 @@ def mu_train(training_data, hypers, model_out, stats_out, cal_out, maxfloat, qui
         print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
     data_dict = mututils.load_all_beds(training_data)
 
+    for contig, vals in data_dict.items():
+        if vals['features'].max().isinf() or vals['features'].min().isinf():
+            import pdb; pdb.set_trace()
+
     # Perform cross-validation, if optioned
     cv_res = {}
     if hypers['cv_eval']:

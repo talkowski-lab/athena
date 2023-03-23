@@ -28,19 +28,21 @@ def _load_precomp_model(precomp_model):
     """
 
     with open(precomp_model, 'rb') as pkl_in:
-        df_fills, trans_dict, scaler, pca, components, whitener = pickle.load(pkl_in)
+        df_fills, trans_dict, scaler, pca, components, whitener, eigenval_limits \
+            = pickle.load(pkl_in)
 
-    return df_fills, trans_dict, scaler, pca, components, whitener
+    return df_fills, trans_dict, scaler, pca, components, whitener, eigenval_limits
 
 
 def _save_model_params(df_fills, trans_dict, scaler, pca, components, whitener, 
-                       parameters_outfile):
+                       eigenval_limits, parameters_outfile):
     """
     Save a model's parameters as a .pickle for application to other data
     """
 
     with open(parameters_outfile, 'wb') as pkl_out:
-        model_to_save = [df_fills, trans_dict, scaler, pca, components, whitener]
+        model_to_save = [df_fills, trans_dict, scaler, pca, components, 
+                         whitener, eigenval_limits]
         pickle.dump(model_to_save, pkl_out)
 
 
@@ -93,8 +95,9 @@ def get_feature_stats(df_annos, feature_names, pca, pcs, stats_outfile,
 
 def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_model=None, 
                    components=10, minvar=None, trans_dict=None, whiten=False, 
-                   fill_missing=0, first_column=3, maxfloat=5, max_pcs=100, 
-                   pca_stats=None, eigen_prefix='eigenfeature', bgzip=False):
+                   cap_predictions=False, fill_missing=0, first_column=3, 
+                   maxfloat=5, max_pcs=100, pca_stats=None, 
+                   eigen_prefix='eigenfeature', bgzip=False):
     """
     Master function for Eigendecomposition of bin annotations
     """
@@ -104,7 +107,7 @@ def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_mod
 
     # Load precomputed model, if optioned
     if precomp_model is not None:
-        df_fills, trans_dict, scaler, pca, components, whitener = \
+        df_fills, trans_dict, scaler, pca, components, whitener, eigenval_limits = \
             _load_precomp_model(precomp_model)
         fill_missing = df_fills
 
@@ -150,6 +153,18 @@ def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_mod
     if whitener is not None:
         df_pcs = pd.DataFrame(whitener.transform(df_pcs), columns=eigen_names)
 
+    # Cap extreme eigenvalues, if optioned
+    if precomp_model is None:
+        smallest_eigenvals = pd.Series([-np.inf] * df_pcs.shape[1], index=df_pcs.columns)
+        largest_eigenvals = pd.Series([np.inf] * df_pcs.shape[1], index=df_pcs.columns)
+        if cap_predictions:
+            smallest_eigenvals = df_pcs.min()
+            largest_eigenvals = df_pcs.max()
+        eigenval_limits = {'lower' : smallest_eigenvals,
+                           'upper' : largest_eigenvals}
+    dfutils.cap_values(df_pcs, eigenval_limits['lower'], direction='lower')
+    dfutils.cap_values(df_pcs, eigenval_limits['upper'], direction='upper')
+
     # Write output bins with PCs
     if bins_outfile is not None:
         if 'compressed' in determine_filetype(bins_outfile):
@@ -163,7 +178,7 @@ def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_mod
     # Save model for future use, if optioned
     if parameters_outfile is not None:
         _save_model_params(df_fills, trans_dict, scaler, pca, components, 
-                           whitener, parameters_outfile)
+                           whitener, eigenval_limits, parameters_outfile)
 
     # Perform extra assessments of PCA & feature fits, if optioned
     if pca_stats is not None:

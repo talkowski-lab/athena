@@ -309,3 +309,25 @@ def feature_stats(bed, out_path, skip_cols, log_transform, sqrt_transform,
     out_df.to_csv(outfile, sep='\t', index=False, header=True)
     outfile.close()
 
+
+def cap_values(df, limits, direction='upper'):
+    """
+    Limit values of column(s) in a dataframe based on a pd.Series of maximum values
+    """
+
+    df_colnames = set(df.columns.tolist())
+    query_colnames = set(limits.index.tolist())
+
+    for colname in df_colnames.intersection(query_colnames):
+
+        limit_val = limits[colname]
+
+        if direction == 'upper':
+            extreme_idxs = df.loc[:, colname] > limit_val
+        elif direction == 'lower':
+            extreme_idxs = df.loc[:, colname] < limit_val
+
+        df.loc[extreme_idxs, colname] = limit_val
+
+    return df
+
