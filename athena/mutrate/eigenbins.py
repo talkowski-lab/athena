@@ -95,8 +95,8 @@ def get_feature_stats(df_annos, feature_names, pca, pcs, stats_outfile,
 
 def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_model=None, 
                    components=10, minvar=None, trans_dict=None, whiten=False, 
-                   cap_predictions=False, fill_missing=0, first_column=3, 
-                   maxfloat=5, max_pcs=100, pca_stats=None, 
+                   cap_predictions=False, symmetric_cap=False, fill_missing=0, 
+                   first_column=3, maxfloat=5, max_pcs=100, pca_stats=None, 
                    eigen_prefix='eigenfeature', bgzip=False):
     """
     Master function for Eigendecomposition of bin annotations
@@ -158,8 +158,12 @@ def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_mod
         smallest_eigenvals = pd.Series([-np.inf] * df_pcs.shape[1], index=df_pcs.columns)
         largest_eigenvals = pd.Series([np.inf] * df_pcs.shape[1], index=df_pcs.columns)
         if cap_predictions:
-            smallest_eigenvals = df_pcs.min()
-            largest_eigenvals = df_pcs.max()
+            if symmetric_cap:
+                largest_eigenvals = df_pcs.abs().max()
+                smallest_eigenvals = -largest_eigenvals
+            else:
+                smallest_eigenvals = df_pcs.min()
+                largest_eigenvals = df_pcs.max()
         eigenval_limits = {'lower' : smallest_eigenvals,
                            'upper' : largest_eigenvals}
     dfutils.cap_values(df_pcs, eigenval_limits['lower'], direction='lower')

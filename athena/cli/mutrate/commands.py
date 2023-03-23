@@ -321,6 +321,9 @@ def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions,
 @click.option('--cap-predictions', is_flag=True, default=False,
               help='Limit eigenvalues to the minimum and maximum values observed ' +
               'when training a PCA model. Only relevant for --parameters-outfile.')
+@click.option('--symmetric-cap', is_flag=True, default=False,
+              help='Enforce a symmetric limit when using --cap-predictions. Only ' +
+              'relevant for --parameters-outfile.')
 @click.option('--fill-missing', type=str, default='0',
               help='Behavior for filling missing values. Can specify numeric ' + 
               'value to fill all missing cells, or "mean"/"median" to ' +
@@ -339,7 +342,7 @@ def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions,
               help='Compress output BED with bgzip.')
 def annodecomp(bins, bins_outfile, parameters_outfile, precomp_model, components, 
                min_variance, trans_tsv, log_transform, sqrt_transform, exp_transform, 
-               square_transform, boxcox_transform, whiten, cap_predictions, 
+               square_transform, boxcox_transform, whiten, cap_predictions, symmetric_cap,
                fill_missing, skip_columns, maxfloat, max_pcs, stats, prefix, bgzip):
     """
     Eigendecomposition of annotations
@@ -370,8 +373,8 @@ def annodecomp(bins, bins_outfile, parameters_outfile, precomp_model, components
     # Run feature decomposition
     mutrate.decompose_bins(bins, bins_outfile, parameters_outfile, precomp_model, 
                            components, min_variance, trans_dict, whiten, 
-                           cap_predictions, fill_missing, skip_columns, maxfloat, 
-                           max_pcs, stats, prefix, bgzip)
+                           cap_predictions, symmetric_cap, fill_missing, 
+                           skip_columns, maxfloat, max_pcs, stats, prefix, bgzip)
 
 
 # Train mutation rate model
