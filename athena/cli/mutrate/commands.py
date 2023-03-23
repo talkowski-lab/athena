@@ -319,8 +319,9 @@ def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions,
 @click.option('--whiten', is_flag=True, default=False,
               help='"Whiten" eigenfeatures with standard normalization.')
 @click.option('--cap-predictions', is_flag=True, default=False,
-              help='Limit eigenvalues to the minimum and maximum values observed ' +
-              'when training a PCA model. Only relevant for --parameters-outfile.')
+              help='Limit eigenvalues to twice minimum and maximum values observed ' +
+              'when training a decomposition model. Only relevant for ' +
+              '--parameters-outfile.')
 @click.option('--symmetric-cap', is_flag=True, default=False,
               help='Enforce a symmetric limit when using --cap-predictions. Only ' +
               'relevant for --parameters-outfile.')

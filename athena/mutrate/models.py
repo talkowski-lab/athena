@@ -79,10 +79,7 @@ def train_torch_model(features, labels, model, optimizer, criterion, epochs=10e6
         preds = model(features)
 
         # Compute loss
-        try:
-            loss = criterion(preds, labels)
-        except:
-            import pdb; pdb.set_trace()
+        loss = criterion(preds, labels)
         loss_over_time.append(loss.float().item())
 
         # Backward pass

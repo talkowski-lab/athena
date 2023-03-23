@@ -166,8 +166,8 @@ def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_mod
                 largest_eigenvals = df_pcs.max()
         eigenval_limits = {'lower' : smallest_eigenvals,
                            'upper' : largest_eigenvals}
-    dfutils.cap_values(df_pcs, eigenval_limits['lower'], direction='lower')
-    dfutils.cap_values(df_pcs, eigenval_limits['upper'], direction='upper')
+    dfutils.cap_values(df_pcs, 2 * eigenval_limits['lower'], direction='lower')
+    dfutils.cap_values(df_pcs, 2 * eigenval_limits['upper'], direction='upper')
 
     # Write output bins with PCs
     if bins_outfile is not None:
