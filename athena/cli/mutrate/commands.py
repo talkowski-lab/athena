@@ -55,12 +55,12 @@ import json
 @click.option('--track-list', default=None, 
               help='List of local tracks to annotate. Must be specified as three-' +
               'column, tab-delimited text file. One row per track. Columns ' +
-              'correspond to argumenmts passed as -t, -a, and -n, respectively. ' +
+              'correspond to arguments passed as -t, -a, and -n, respectively. ' +
               'Will be added to other tracks directly specified with -t/-a/-n.')
 @click.option('--ucsc-list', default=None, 
               help='List of UCSC tracks to annotate. Must be specified as three-' +
               'column, tab-delimited text file. One row per track. Columns ' +
-              'correspond to argumenmts passed as -u, -a, and -n, respectively. ' +
+              'correspond to arguments passed as -u, -a, and -n, respectively. ' +
               'Will be added to other tracks directly specified with -u/-a/-n.')
 @click.option('-r', '--ucsc-ref', default=None, type=click.Choice(['hg18', 'hg19', 'hg38']),
               help='UCSC reference genome to use with --ucsc-tracks.')
@@ -181,12 +181,12 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, actio
 @click.option('--track-list', default=None, 
               help='List of local tracks to annotate. Must be specified as three-' +
               'column, tab-delimited text file. One row per track. Columns ' +
-              'correspond to argumenmts passed as -t, -a, and -n, respectively. ' +
+              'correspond to arguments passed as -t, -a, and -n, respectively. ' +
               'Will be added to other tracks directly specified with -t/-a/-n.')
 @click.option('--ucsc-list', default=None, 
               help='List of UCSC tracks to annotate. Must be specified as three-' +
               'column, tab-delimited text file. One row per track. Columns ' +
-              'correspond to argumenmts passed as -u, -a, and -n, respectively. ' +
+              'correspond to arguments passed as -u, -a, and -n, respectively. ' +
               'Will be added to other tracks directly specified with -u/-a/-n.')
 @click.option('-r', '--ucsc-ref', default=None, type=click.Choice(['hg18', 'hg19', 'hg38']),
               help='UCSC reference genome to use with --ucsc-tracks.')
