@@ -138,6 +138,9 @@ def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_mod
         if minvar is None:
             components = pcs_to_calc
         else:
+            if minvar > 1:
+                from sys import exit
+                exit('ERROR: Minimum variance cannot be greater than 1.')
             components = len([i for i in np.cumsum(pca.explained_variance_ratio_) \
                               if i < minvar])
 
