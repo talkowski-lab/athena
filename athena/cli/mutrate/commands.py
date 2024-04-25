@@ -332,6 +332,7 @@ def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions,
               help='Behavior for filling missing values. Can specify numeric ' + 
               'value to fill all missing cells, or "mean"/"median" to ' +
               'impute on a per-column basis. [0]')
+@click.option('--seed', type=int, default=42, help='Set PCA random seed [default: 42]')
 @click.option('--skip-columns', type=int, default=3,
               help='Skip first N columns of input bins. [3]')
 @click.option('--maxfloat', type=int, default=8, 
@@ -347,7 +348,7 @@ def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions,
 def annodecomp(bins, bins_outfile, parameters_outfile, precomp_model, components, 
                min_variance, trans_tsv, log_transform, sqrt_transform, exp_transform, 
                square_transform, boxcox_transform, whiten, cap_predictions, symmetric_cap,
-               fill_missing, skip_columns, maxfloat, max_pcs, stats, prefix, bgzip):
+               fill_missing, seed, skip_columns, maxfloat, max_pcs, stats, prefix, bgzip):
     """
     Eigendecomposition of annotations
     """
@@ -377,7 +378,7 @@ def annodecomp(bins, bins_outfile, parameters_outfile, precomp_model, components
     # Run feature decomposition
     mutrate.decompose_bins(bins, bins_outfile, parameters_outfile, precomp_model, 
                            components, min_variance, trans_dict, whiten, 
-                           cap_predictions, symmetric_cap, fill_missing, 
+                           cap_predictions, symmetric_cap, fill_missing, seed,
                            skip_columns, maxfloat, max_pcs, stats, prefix, bgzip)
 
 

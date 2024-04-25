@@ -96,7 +96,7 @@ def get_feature_stats(df_annos, feature_names, pca, pcs, stats_outfile,
 def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_model=None, 
                    components=10, minvar=None, trans_dict=None, whiten=False, 
                    cap_predictions=False, symmetric_cap=False, fill_missing=0, 
-                   first_column=3, maxfloat=5, max_pcs=100, pca_stats=None, 
+                   seed=42, first_column=3, maxfloat=5, max_pcs=100, pca_stats=None, 
                    eigen_prefix='eigenfeature', bgzip=False):
     """
     Master function for Eigendecomposition of bin annotations
@@ -134,7 +134,7 @@ def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_mod
     # Learn covariance matrix & determine number of components to keep
     if precomp_model is None:
         pcs_to_calc = min([df_annos.shape[1], max_pcs])
-        pca = PCA(n_components=pcs_to_calc).fit(df_annos)
+        pca = PCA(n_components=pcs_to_calc, random_state=seed).fit(df_annos)
         if minvar is None:
             components = pcs_to_calc
         else:
