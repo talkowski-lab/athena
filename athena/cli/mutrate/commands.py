@@ -352,7 +352,7 @@ def annodecomp(bins, bins_outfile, parameters_outfile, precomp_model, components
     Eigendecomposition of annotations
     """
 
-    # Check that either -o or -t options are provided
+    # Check that either -o or -P options are provided
     if bins_outfile is None and parameters_outfile is None:
       from os import exit
       exit('INPUT ERROR: must specify at least one of -o or -P')
