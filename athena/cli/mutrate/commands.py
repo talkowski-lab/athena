@@ -363,16 +363,16 @@ def annodecomp(bins, bins_outfile, parameters_outfile, precomp_model, components
       trans_dict = dfutils._load_transformations(trans_tsv)
     else:
       trans_dict = {t : [] for t in 'log sqrt exp square boxcox'.split()}
-    for f in log_transform:
-      trans_dict['log'].append(f)
-    for f in sqrt_transform:
-      trans_dict['sqrt'].append(f)
-    for f in exp_transform:
-      trans_dict['exp'].append(f)
-    for f in square_transform:
-      trans_dict['square'].append(f)
-    for f in boxcox_transform:
-      trans_dict['boxcox'].append(f)
+      for f in log_transform:
+        trans_dict['log'].append(f)
+      for f in sqrt_transform:
+        trans_dict['sqrt'].append(f)
+      for f in exp_transform:
+        trans_dict['exp'].append(f)
+      for f in square_transform:
+        trans_dict['square'].append(f)
+      for f in boxcox_transform:
+        trans_dict['boxcox'].append(f)
 
     # Run feature decomposition
     mutrate.decompose_bins(bins, bins_outfile, parameters_outfile, precomp_model, 
