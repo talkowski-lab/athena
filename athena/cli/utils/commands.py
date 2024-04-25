@@ -180,7 +180,7 @@ def sliceremote(urls_tsv, regions_bed, ref_fasta, local_suffix, tsv_out,
               'passed as arguments.')
 @click.option('--log-transform', multiple=True, help='List of column names to ' +
               'be log-transformed prior to plotting. Note that the exact ' +
-              'transformation is log10(x+max(x/1000)).')
+              'transformation is log10(x+(max_x/10e10)).')
 @click.option('--sqrt-transform', multiple=True, help='List of column names to ' +
               'be square root-transformed prior to plotting.')
 @click.option('--exp-transform', multiple=True, help='List of column names to ' +
@@ -189,7 +189,7 @@ def sliceremote(urls_tsv, regions_bed, ref_fasta, local_suffix, tsv_out,
               'be square-transformed prior to plotting.')
 @click.option('--boxcox-transform', multiple=True, help='List of column names to ' +
               'be Box-Cox power-transformed prior to plotting. Note that ' + 
-              'the exact transformation is performed on x+max(x/1000).')
+              'the exact transformation is performed on x+(max_x/10e10).')
 def featurehists(bed, png_prefix, skip_cols, trans_tsv, log_transform, sqrt_transform,
                  exp_transform, square_transform, boxcox_transform):
   """
@@ -220,7 +220,7 @@ def featurehists(bed, png_prefix, skip_cols, trans_tsv, log_transform, sqrt_tran
               'passed as arguments.')
 @click.option('--log-transform', multiple=True, help='List of column names to ' +
               'be log-transformed. Note that the exact transformation is ' +
-              'log10(x+max(x/1000)).')
+              'log10(x+(max_x/10e10)).')
 @click.option('--sqrt-transform', multiple=True, help='List of column names to ' +
               'be square root-transformed.')
 @click.option('--exp-transform', multiple=True, help='List of column names to ' +
@@ -229,7 +229,7 @@ def featurehists(bed, png_prefix, skip_cols, trans_tsv, log_transform, sqrt_tran
               'be square-transformed.')
 @click.option('--boxcox-transform', multiple=True, help='List of column names to ' +
               'be Box-Cox power-transformed. Note that the exact transformation ' +
-              'is performed on x+max(x/1000).')
+              'is performed on x+(max_x/10e10).')
 @click.option('--maxfloat', type=int, default=8, 
               help='Maximum precision of floating-point values. [default: 8]')
 def featurestats(bed, outfile, skip_cols, trans_tsv, log_transform, sqrt_transform,
@@ -343,7 +343,7 @@ def countsv(sv, query, outfile, query_format, binsize, comparison, probs, group_
               'passed as arguments.')
 @click.option('--log-transform', multiple=True, help='List of column names to ' +
               'be log-transformed. Note that the exact transformation is ' + 
-              'log10(x+max(x/1000)).')
+              'log10(x+(max_x/10e10)).')
 @click.option('--sqrt-transform', multiple=True, help='List of column names to ' +
               'be square root-transformed.')
 @click.option('--exp-transform', multiple=True, help='List of column names to ' +
@@ -352,7 +352,7 @@ def countsv(sv, query, outfile, query_format, binsize, comparison, probs, group_
               'be square-transformed.')
 @click.option('--boxcox-transform', multiple=True, help='List of column names to ' +
               'be Box-Cox power-transformed. Note that the exact transformation ' +
-              'is performed on x+max(x/1000).')
+              'is performed on x+(max_x/10e10).')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output with bgzip')
 def transform(bed_in, bed_out, skip_cols, trans_tsv, log_transform, sqrt_transform,
@@ -380,7 +380,7 @@ def transform(bed_in, bed_out, skip_cols, trans_tsv, log_transform, sqrt_transfo
 @click.option('--bin-superset', 'all_bins', help='Master BED file of all bins to ' +
               'be considered as potential pairs. This input is only useful ' +
               'if the BINS positional argument does not contain all bins ' +
-              'for a given chromosome.')
+              'for a given chromosome. Should have same features as BINS.')
 @click.option('--max-dist', type=int, default=1000000,
               help='Maximum distance to search for candidate pairs.')
 @click.option('-x', '--exclusion-list', default=None, multiple=True,

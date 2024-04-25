@@ -191,7 +191,9 @@ def annotatebins(bins, outfile, include_chroms, ranges, track, ucsc_track, actio
 @click.option('-r', '--ucsc-ref', default=None, type=click.Choice(['hg18', 'hg19', 'hg38']),
               help='UCSC reference genome to use with --ucsc-tracks.')
 @click.option('--fasta', default=None, help='Reference genome fasta file. If ' +
-              'supplied, will annotate all bins with nucleotide content. Will ' +
+              'supplied, will annotate all pairs with homology-based features.' +
+              'This is currently the longest stretch of contiguous sequence with' +
+              'at least some amount of homology specified by --homology-cutoff. Will ' +
               'also generate fasta index if not already available locally.')
 @click.option('--binsize', type=int, default=None, help='Size of bins. [default: ' +
               'infer from spacing of coordinates of pairs]')
@@ -286,27 +288,29 @@ def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions,
 
 @click.command(name='eigen-bins')
 @click.argument('bins', type=click.Path(exists=True))
-@click.option('-o', '--decomped-bins-outfile', 'bins_outfile', 
-                help='Output file for bins with decomposed annotations.')
+@click.option('-o', '--decomped-bins-outfile', 'bins_outfile', help='Output file for ' +
+              'bins with decomposed annotations. At least one of -o and -P must be ' +
+              'specified.')
 @click.option('-P', '--parameters-outfile', help='Output .pickle for learned ' +
                 'transformation parameters. Useful to apply transformation to ' +
-                'additional BED files not included in training.')
+                'additional BED files not included in training. At least one of -o ' +
+                'and -P must be specified.')
 @click.option('--precomputed-parameters', 'precomp_model', help='Optional .pickle ' +
               'input to import precomputed transformations, scaling, and covariance ' +
               'matrix from a previous call of athena eigen-bins to apply to a new ' +
               'dataset. Will override any command-line arguments that conflict with ' +
               'the precomputed parameters.')
 @click.option('-e', '--eigenfeatures', 'components', type=int, default=10,
-              help='Number of principal components to return.')
+              help='Max number of principal components to return.')
 @click.option('--min-variance', type=float, default=None,
-              help='Optional method for specifying number of components to return. ' + 
-              'Specify minimum proportion of variance to explain.')
+              help='Optional method for specifying maximum number of components to ' + 
+              'return. Specify minimum proportion of variance to explain.')
 @click.option('--transformations-tsv', 'trans_tsv', help='Two-column tsv listing ' + 
               'all transformations to be applied. Will supersede any transformations ' +
               'passed as arguments.')
 @click.option('--log-transform', multiple=True, help='List of column names to ' +
               'be log-transformed prior to decomposition. Note that the exact ' +
-              'transformation is log10(x+max(x/10e10)).')
+              'transformation is log10(x+(max_x/10e10)).')
 @click.option('--sqrt-transform', multiple=True, help='List of column names to ' +
               'be square root-transformed prior to decomposition.')
 @click.option('--exp-transform', multiple=True, help='List of column names to ' +
@@ -315,7 +319,7 @@ def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions,
               'be square-transformed prior to decomposition.')
 @click.option('--boxcox-transform', multiple=True, help='List of column names to ' +
               'be Box-Cox power-transformed prior to decomposition. Note that ' + 
-              'the exact transformation is applied to x+max(x/10e10).')
+              'the exact transformation is applied to x+(max+x/10e10).')
 @click.option('--whiten', is_flag=True, default=False,
               help='"Whiten" eigenfeatures with standard normalization.')
 @click.option('--cap-predictions', is_flag=True, default=False,
