@@ -142,7 +142,7 @@ def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_mod
                 from sys import exit
                 exit('ERROR: Minimum variance cannot be greater than 1.')
             components = len([i for i in np.cumsum(pca.explained_variance_ratio_) \
-                              if i < minvar])
+                              if i < minvar]) + 1
 
     # Decompose annotations
     pcs = pca.transform(df_annos)
