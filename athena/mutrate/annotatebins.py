@@ -333,8 +333,7 @@ def annotate_bins(bins, chroms, ranges, tracks, ucsc_tracks, ucsc_ref,
         if quiet is False:
             status_msg = '[{0}] athena annotate-bins: Connecting to UCSC ' + \
                          'Genome Browser database'
-            print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S'), 
-                                    fasta))
+            print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
         db = ucsc.ucsc_connect(ucsc_ref)
         query_regions = ucsc.collapse_query_regions(bins).saveas()
 

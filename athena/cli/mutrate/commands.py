@@ -255,7 +255,6 @@ def annotatepairs(pairs, outfile, chroms, ranges, track, ucsc_track, actions,
     else:
         header = open(pairs, 'r').readline().rstrip()
     if not header.startswith('#'):
-      msg = 'INPUT WARNING: '
       status_msg = '[{0}] athena annotate-pairs: No header line detected. ' + \
                    'Adding default header.'
       print(status_msg.format(datetime.now().strftime('%b %d %Y @ %H:%M:%S')))
