@@ -18,83 +18,114 @@ from athena.utils.misc import bgzip as bgz
 from athena.utils.math import hwe_chisq
 
 
-def filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list, 
-               minAF, maxAF, minAC, maxAC, minAN, filters, 
-               minQUAL, maxQUAL, HWE, af_fields, keep_infos, bgzip):
+def filter_vcf(
+    vcf,
+    out,
+    chroms,
+    xchroms,
+    svtypes,
+    exclusion_list,
+    minAF,
+    maxAF,
+    minAC,
+    maxAC,
+    minAN,
+    filters,
+    minQUAL,
+    maxQUAL,
+    HWE,
+    af_fields,
+    keep_infos,
+    bgzip,
+):
 
+    print("Opening connection to input VCF...")
     # Open connection to input VCF
-    if vcf in '- stdin'.split():
-        invcf = pysam.VariantFile(stdin) 
+    if vcf in "- stdin".split():
+        invcf = pysam.VariantFile(stdin)
     else:
         invcf = pysam.VariantFile(vcf)
     header = invcf.header
 
-    #Clean undesired INFO fields from header
-    if keep_infos != 'ALL':
+    print("Cleaning undesired INFO fields from header...")
+    # Clean undesired INFO fields from header
+    if keep_infos != "ALL":
         if keep_infos is None:
             keep_infos = []
         else:
-            keep_infos = keep_infos.split(',')
-        for key in 'END CHR2 SVTYPE SVLEN'.split():
+            keep_infos = keep_infos.split(",")
+        for key in "END CHR2 SVTYPE SVLEN".split():
             keep_infos.append(key)
         for key in header.info.keys():
             if key not in keep_infos:
                 header.info.remove_header(key)
 
+    print("Opening connection to output VCF...")
     # Open connection to output VCF
-    if out in '- stdout'.split():
-        outvcf = pysam.VariantFile(stdout, 'w', header=header)
+    if out in "- stdout".split():
+        outvcf = pysam.VariantFile(stdout, "w", header=header)
     else:
-        if '.gz' in out:
+        if ".gz" in out:
             out = path.splitext(out)[0]
-        outvcf = pysam.VariantFile(out, 'w', header=header)
+        outvcf = pysam.VariantFile(out, "w", header=header)
 
+    print("Parsing filtering options...")
     # Parse filtering options
     if chroms is not None:
-        chroms = chroms.split(',')
+        chroms = chroms.split(",")
     else:
         chroms = header.contigs.keys()
     if xchroms is not None:
-        xchroms = xchroms.split(',')
+        xchroms = xchroms.split(",")
         chroms = [c for c in chroms if c not in xchroms]
     if svtypes is not None:
-        if 'SVTYPE' not in header.info.keys():
-            sys.exit('SVTYPE filtering was specified, but input VCF ' +
-                     'does not have SVTYPE entry in INFO.')
-        else: 
-            svtypes = svtypes.split(',')
+        if "SVTYPE" not in header.info.keys():
+            sys.exit(
+                "SVTYPE filtering was specified, but input VCF "
+                + "does not have SVTYPE entry in INFO."
+            )
+        else:
+            svtypes = svtypes.split(",")
     if filters is not None:
-        filters = filters.split(',')
+        filters = filters.split(",")
     if exclusion_list is not None:
         bl = pybedtools.BedTool(exclusion_list)
 
+    print("Raising warning if AF or AC missing...")
     # Raise warning if AF or AC are missing from VCF
-    for key in af_fields + ['AC']:
+    for key in af_fields + ["AC"]:
         if key not in header.info.keys():
             import warnings
-            warning_message = '{0} not found in VCF INFO, so {0}-based filtering ' + \
-                              'will be ignored'
+
+            warning_message = (
+                "{0} not found in VCF INFO, so {0}-based filtering " + "will be ignored"
+            )
             warning_message = warning_message.format(key)
             warnings.warn(warning_message, RuntimeWarning)
-    
+
+    print("Raising exception if HWE enabled but fields missing...")
     # Raise exception if HWE enabled but any necessary fields missing
     if HWE is not None:
-        for key in 'N_HOMREF N_HET N_HOMALT'.split():
+        for key in "N_HOMREF N_HET N_HOMALT".split():
             if key not in header.info.keys():
-                error_message = 'Hardy-Weinberg filtering not possible due to ' + \
-                                'missing {0} in VCF INFO'
+                error_message = (
+                    "Hardy-Weinberg filtering not possible due to "
+                    + "missing {0} in VCF INFO"
+                )
                 sys.exit(error_message.format(key))
 
+    print("Iterating over VCF and filtering...")
     # Iterate over vcf & filter records
-    for record in invcf.fetch():
+    for i, record in enumerate(invcf.fetch()):
+        if (i % 200000) == 0:
+            print(i)
+
         # Filter by chromosome
-        if chroms is not None \
-        and record.chrom not in chroms:
+        if chroms is not None and record.chrom not in chroms:
             continue
 
         # Filter by svtype
-        if svtypes is not None \
-        and record.info['SVTYPE'] not in svtypes:
+        if svtypes is not None and record.info["SVTYPE"] not in svtypes:
             continue
 
         # Exclude records where end < start
@@ -107,21 +138,21 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list,
                 if minAF is not None:
                     if np.nansum(record.info[af_field]) < minAF:
                         continue
-            if maxAF is not None:
-                if np.nansum(record.info[af_field]) > maxAF:
-                    continue        
-        if 'AC' in record.info.keys():
+                if maxAF is not None:
+                    if np.nansum(record.info[af_field]) > maxAF:
+                        continue
+        if "AC" in record.info.keys():
             if minAC is not None:
-                if np.nansum(record.info['AC']) < minAC:
+                if np.nansum(record.info["AC"]) < minAC:
                     continue
             if maxAC is not None:
-                if np.nansum(record.info['AC']) > maxAC:
+                if np.nansum(record.info["AC"]) > maxAC:
                     continue
 
         # Filter by AN
-        if 'AN' in record.info.keys():
+        if "AN" in record.info.keys():
             if minAN is not None:
-                if record.info['AN'] < minAN:
+                if record.info["AN"] < minAN:
                     continue
 
         # Filter by VCF FILTER
@@ -130,12 +161,10 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list,
                 continue
 
         # Filter by QUAL score
-        if minQUAL is not None \
-        and record.qual is not None:
+        if minQUAL is not None and record.qual is not None:
             if record.qual < minQUAL:
                 continue
-        if maxQUAL is not None \
-        and record.qual is not None:
+        if maxQUAL is not None and record.qual is not None:
             if record.qual > maxQUAL:
                 continue
 
@@ -146,7 +175,7 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list,
                     continue
 
         # Clean record
-        if keep_infos != 'ALL':
+        if keep_infos != "ALL":
             for key in record.info.keys():
                 if key not in keep_infos:
                     record.info.pop(key)
@@ -154,14 +183,16 @@ def filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list,
         # Write filter-passing records to output VCF
         outvcf.write(record)
 
+    print("Closing connection to output VCF...")
     outvcf.close()
 
+    print("Filtering against exclusion_list...")
     # Filter remaining records against exclusion_list
     if exclusion_list is not None:
         prebl_vcf = pybedtools.BedTool(out)
         prebl_vcf.intersect(bl, header=True, v=True).saveas(out)
 
+    print("Bgzipping output VCF...")
     # Bgzip output VCF, if optioned
     if bgzip:
         bgz(out)
-
