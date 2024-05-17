@@ -39,7 +39,6 @@ def filter_vcf(
     bgzip,
 ):
 
-    print("Opening connection to input VCF...")
     # Open connection to input VCF
     if vcf in "- stdin".split():
         invcf = pysam.VariantFile(stdin)
@@ -47,7 +46,6 @@ def filter_vcf(
         invcf = pysam.VariantFile(vcf)
     header = invcf.header
 
-    print("Cleaning undesired INFO fields from header...")
     # Clean undesired INFO fields from header
     if keep_infos != "ALL":
         if keep_infos is None:
@@ -60,7 +58,6 @@ def filter_vcf(
             if key not in keep_infos:
                 header.info.remove_header(key)
 
-    print("Opening connection to output VCF...")
     # Open connection to output VCF
     if out in "- stdout".split():
         outvcf = pysam.VariantFile(stdout, "w", header=header)
@@ -69,7 +66,6 @@ def filter_vcf(
             out = path.splitext(out)[0]
         outvcf = pysam.VariantFile(out, "w", header=header)
 
-    print("Parsing filtering options...")
     # Parse filtering options
     if chroms is not None:
         chroms = chroms.split(",")
@@ -91,7 +87,6 @@ def filter_vcf(
     if exclusion_list is not None:
         bl = pybedtools.BedTool(exclusion_list)
 
-    print("Raising warning if AF or AC missing...")
     # Raise warning if AF or AC are missing from VCF
     for key in af_fields + ["AC"]:
         if key not in header.info.keys():
@@ -103,7 +98,6 @@ def filter_vcf(
             warning_message = warning_message.format(key)
             warnings.warn(warning_message, RuntimeWarning)
 
-    print("Raising exception if HWE enabled but fields missing...")
     # Raise exception if HWE enabled but any necessary fields missing
     if HWE is not None:
         for key in "N_HOMREF N_HET N_HOMALT".split():
@@ -114,12 +108,8 @@ def filter_vcf(
                 )
                 sys.exit(error_message.format(key))
 
-    print("Iterating over VCF and filtering...")
     # Iterate over vcf & filter records
-    for i, record in enumerate(invcf.fetch()):
-        if (i % 200000) == 0:
-            print(i)
-
+    for record in invcf.fetch():
         # Filter by chromosome
         if chroms is not None and record.chrom not in chroms:
             continue
@@ -183,16 +173,13 @@ def filter_vcf(
         # Write filter-passing records to output VCF
         outvcf.write(record)
 
-    print("Closing connection to output VCF...")
     outvcf.close()
 
-    print("Filtering against exclusion_list...")
     # Filter remaining records against exclusion_list
     if exclusion_list is not None:
         prebl_vcf = pybedtools.BedTool(out)
         prebl_vcf.intersect(bl, header=True, v=True).saveas(out)
 
-    print("Bgzipping output VCF...")
     # Bgzip output VCF, if optioned
     if bgzip:
         bgz(out)
