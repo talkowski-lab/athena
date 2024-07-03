@@ -338,7 +338,7 @@ def annotate_pairs(
     if "compressed" in ftype:
         pairs = "".join(s.decode("utf-8") for s in GzipFile(pairs).readlines())
     else:
-        pairs = open(pairs, "r").readlines()
+        pairs = "".join(open(pairs, "r").readlines())
     firstline = pairs.split("\n")[0].split("\t")
     if firstline[0].startswith("#"):
         colnames = firstline
