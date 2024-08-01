@@ -22,27 +22,28 @@ from athena.utils.misc import determine_filetype
 import athena.utils.dfutils as dfutils
 
 
-def _load_precomp_model(precomp_model):
+def load_model_params(precomp_model):
     """
     Load a precomputed eigen-bins model from a .pickle to be applied to new data
     """
 
     with open(precomp_model, 'rb') as pkl_in:
-        df_fills, trans_dict, scaler, pca, components, whitener, eigenval_limits \
-            = pickle.load(pkl_in)
+        feature_names, df_fills, trans_dict, scaler, pca, components, whitener, \
+            eigenval_limits = pickle.load(pkl_in)
 
-    return df_fills, trans_dict, scaler, pca, components, whitener, eigenval_limits
+    return feature_names, df_fills, trans_dict, scaler, pca, components, whitener, \
+        eigenval_limits
 
 
-def _save_model_params(df_fills, trans_dict, scaler, pca, components, whitener, 
-                       eigenval_limits, parameters_outfile):
+def _save_model_params(feature_names, df_fills, trans_dict, scaler, pca, components,
+                       whitener, eigenval_limits, parameters_outfile):
     """
     Save a model's parameters as a .pickle for application to other data
     """
 
     with open(parameters_outfile, 'wb') as pkl_out:
-        model_to_save = [df_fills, trans_dict, scaler, pca, components, 
-                         whitener, eigenval_limits]
+        model_to_save = [feature_names, df_fills, trans_dict, scaler, pca, 
+                         components, whitener, eigenval_limits]
         pickle.dump(model_to_save, pkl_out)
 
 
@@ -107,8 +108,8 @@ def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_mod
 
     # Load precomputed model, if optioned
     if precomp_model is not None:
-        df_fills, trans_dict, scaler, pca, components, whitener, eigenval_limits = \
-            _load_precomp_model(precomp_model)
+        feature_names, df_fills, trans_dict, scaler, pca, components, whitener, \
+            eigenval_limits = load_model_params(precomp_model)
         fill_missing = df_fills
 
     # Expand feature transformation dictionary
@@ -124,8 +125,12 @@ def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_mod
         dfutils.load_feature_df(bins, first_column, log_transform, sqrt_transform, 
                                 exp_transform, square_transform,  boxcox_transform, 
                                 fill_missing, return_fills=True)
-    feature_names = df_annos.columns.tolist()
-    
+    # Reorder annotations to match precomputed model if applicable
+    if precomp_model is not None:
+        df_annos = df_annos[feature_names]
+    else:
+        feature_names = df_annos.columns.tolist()
+
     # Scale all columns
     if precomp_model is None:
         scaler = StandardScaler().fit(df_annos)
@@ -184,11 +189,11 @@ def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_mod
 
     # Save model for future use, if optioned
     if parameters_outfile is not None:
-        _save_model_params(df_fills, trans_dict, scaler, pca, components, 
-                           whitener, eigenval_limits, parameters_outfile)
+        _save_model_params(feature_names, df_fills, trans_dict, scaler, pca, 
+                           components, whitener, eigenval_limits, 
+                           parameters_outfile)
 
     # Perform extra assessments of PCA & feature fits, if optioned
     if pca_stats is not None:
         get_feature_stats(df_annos, feature_names, pca, pcs, pca_stats, 
                           eigen_prefix, components)
-
