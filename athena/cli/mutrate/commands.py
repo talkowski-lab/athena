@@ -396,6 +396,8 @@ def annodecomp(bins, bins_outfile, parameters_outfile, precomp_model, components
               '.pkl file for trained model')
 @click.option('--stats-outfile', 'stats_out', type=str, help='Path to output .tsv ' +
               'with training stats')
+@click.option('--weights-outfile', 'weights_out', type=str, help='Path to output .txt ' +
+              'with PC weights in trained model')
 @click.option('--calibration-outfile', 'cal_out', type=str, help='Path to output ' +
               '.tsv with predicted mutation rates and SV counts for all training bins')
 @click.option('--no-cv', is_flag=True, help='Do not run cross-validation to ' +
@@ -423,9 +425,9 @@ def annodecomp(bins, bins_outfile, parameters_outfile, precomp_model, components
 @click.option('--maxfloat', type=int, default=8, 
               help='Maximum precision of floating-point values. [default: 8]')
 @click.option('-q', '--quiet', is_flag=True, help='Do not print progress to stdout')
-def mutrain(training_data, config, model_class, model_out, stats_out, cal_out, no_cv, 
-            max_cv_k, l2, no_scaling, n_gw_pairs, gw_mu_prior, learning_rate, 
-            max_epochs, seed, maxfloat, quiet):
+def mutrain(training_data, config, model_class, model_out, stats_out, weights_out, 
+            cal_out, no_cv, max_cv_k, l2, no_scaling, n_gw_pairs, gw_mu_prior, 
+            learning_rate, max_epochs, seed, maxfloat, quiet):
     """
     Train mutation rate model
     """
@@ -446,9 +448,13 @@ def mutrain(training_data, config, model_class, model_out, stats_out, cal_out, n
     if config is not None:
       with open(config) as cfile:
         hypers.update(json.load(cfile))
+    if (model_class not in ["logit"]) and (weights_out is not None):       
+        err = 'INPUT ERROR: Model class {0} does not have single layer of ' + \
+              'linear weights to output to {1}.'
+        exit(err.format(model_class, weights_out))
 
-    mutrate.mu_train(training_data, hypers, model_out, stats_out, cal_out, 
-                     maxfloat, quiet)
+    mutrate.mu_train(training_data, hypers, model_out, stats_out, weights_out,
+                     cal_out, maxfloat, quiet)
 
 
 # Apply a pre-trained mutation rate model to predict mutation rates for new bins

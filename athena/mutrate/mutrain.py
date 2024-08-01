@@ -147,7 +147,8 @@ def make_calibration_df(model, all_features, all_labels):
     return cal_df
 
 
-def mu_train(training_data, hypers, model_out, stats_out, cal_out, maxfloat, quiet):
+def mu_train(training_data, hypers, model_out, stats_out, weights_out, 
+             cal_out, maxfloat, quiet):
     """
     Master function to train a single mutation rate model
     """
@@ -259,3 +260,9 @@ def mu_train(training_data, hypers, model_out, stats_out, cal_out, maxfloat, qui
         cal_df = make_calibration_df(model, all_features, all_labels)
         cal_df = dfutils.float_cleanup(cal_df, maxfloat=maxfloat, start_idx=0)
         cal_df.to_csv(cal_out, sep='\t', index=False)
+
+    # Compile & save model weights on PCs, if optioned
+    if weights_out is not None:
+        weights_df = pd.DataFrame(final_model.state_dict()["linear.weight"].numpy()[0])
+        weights_df = dfutils.float_cleanup(weights_df, maxfloat=maxfloat, start_idx=0)
+        weights_df.to_csv(weights_out, index=False, header=False)
