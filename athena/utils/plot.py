@@ -27,7 +27,7 @@ def feature_hists(bed, png_prefix, skip_cols=3, log_transform=None,
     df = dfutils.load_feature_df(bed, skip_cols, log_transform, sqrt_transform,
                                  exp_transform, square_transform, 
                                  boxcox_transform, fill_missing)
-    
+
     def _simple_hist(vals, title):
         """
         Plot a single simple histogram of values
@@ -44,7 +44,7 @@ def feature_hists(bed, png_prefix, skip_cols=3, log_transform=None,
         fig, ax = plt.subplots()
         n, bins, patches = plt.hist(vals_plot, 25)
         plt.subplots_adjust(top=0.8)
-        
+
         # Add axes & title
         ax.set_xlabel(title)
         ax.set_ylabel('Bins')
@@ -62,3 +62,138 @@ def feature_hists(bed, png_prefix, skip_cols=3, log_transform=None,
         _simple_hist(vals, title)
         plt.savefig('.'.join([png_prefix, plot_title, 'png']), format='png')
 
+
+def feature_importance(pca, pdf_prefix, norm_variance=False,
+                       abs_val=False, pc_weights=None):
+    """
+    Plot matrix of raw feature importances through PCs
+    """
+
+    # Get matrix of raw feature weights in PCs
+    weights = pca.components_
+
+    # If optioned, normalize feature weights by variance explained by respective PCs
+    if norm_variance:
+        weights = weights * pca.explained_variance_[:, None]
+
+    # If optioned, normalize feature weights by additional specified PC weights
+    if pc_weights is not None:
+        n_pc_weights = pc_weights.shape[0]
+        if n_pc_weights < weights.shape[0]:
+            # Truncate feature weights to specified number of PCs
+            weights = weights[:n_pc_weights]
+        weights = weights * pc_weights[:, None]
+
+    n_pcs = weights.shape[0]
+
+    # Prepare to plot additional panel with PC weights/variance explained
+    if pc_weights is not None:
+        bar_weights = pc_weights
+        bar_title = "Weights on PCs"
+    elif norm_variance:
+        bar_weights = pca.explained_variance_
+        bar_title = "PC % variance explained"
+    else:
+        bar_weights = None
+        bar_title = None
+
+    # If optioned, take absolute value for ease of interpretability
+    if abs_val:
+        weights = abs(weights)
+
+    # Set heatmap colorscale midpoint at 0
+    if abs_val:
+        colors = "Purples"
+        col_min = 0
+        col_max = np.max(weights)
+    else:
+        colors = "bwr"
+        col_min = -np.max(abs(weights))
+        col_max = np.max(abs(weights))
+
+    feature_names = [
+        "distance",
+        "ENCFF177EPU_ovary_total_RNAseq_min",
+        "ENCFF177EPU_ovary_total_RNAseq_max",
+        "ENCFF177EPU_ovary_total_RNAseq_absdiff",
+        "ENCFF254YHN_testis_total_RNAseq_min",
+        "ENCFF254YHN_testis_total_RNAseq_max",
+        "ENCFF254YHN_testis_total_RNAseq_absdiff",
+        "ENCFF423JSR_testis_ATACseq_min",
+        "ENCFF423JSR_testis_ATACseq_max",
+        "ENCFF423JSR_testis_ATACseq_absdiff",
+        "ENCFF053RTV_ovary_ATACseq_min",
+        "ENCFF053RTV_ovary_ATACseq_max",
+        "ENCFF053RTV_ovary_ATACseq_absdiff",
+        "segdup_coverage_min",
+        "segdup_coverage_max",
+        "segdup_coverage_absdiff",
+        "repeatmasker_count_min",
+        "repeatmasker_count_max",
+        "repeatmasker_count_absdiff",
+        "repeatmasker_sine_coverage_min",
+        "repeatmasker_sine_coverage_max",
+        "repeatmasker_sine_coverage_absdiff",
+        "common_SNP_count_min",
+        "common_SNP_count_max",
+        "common_SNP_count_absdiff",
+        "pct_gc_min",
+        "pct_gc_max",
+        "pct_gc_absdiff",
+        "snv_mu_min",
+        "snv_mu_max",
+        "snv_mu_absdiff",
+        "selfchain_pair_cov",
+        "segdup_fwd_pair_cov",
+        "segdup_rev_pair_cov",
+        "longest_fwd_kmer_100pct_identity",
+        "longest_rev_kmer_100pct_identity",
+    ]
+
+    plot_cols = 2 if bar_weights is not None else 1
+    width_ratio = [3, 1] if bar_weights is not None else [1]
+    fig, axs = plt.subplots(
+        1, plot_cols, sharey=True, layout="constrained",
+        gridspec_kw={'width_ratios': width_ratio},
+        squeeze=False
+    )
+    axs = axs.reshape(-1)
+    fig.set_figheight(10)
+
+    # Plot weight matrix
+    axs[0].imshow(weights, cmap=colors, vmin=col_min, vmax=col_max)
+
+    # Replace x-labels with feature names
+    axs[0].set_xticks(np.arange(len(feature_names)), feature_names)
+    axs[0].tick_params(axis="x", labelrotation=90)
+    axs[0].set_yticks(np.arange(n_pcs), labels=np.arange(n_pcs) + 1)
+
+    # Add axes & title
+    axs[0].set_xlabel("Raw features")
+    axs[0].set_ylabel("PCs")
+    title = "Raw feature weights in PCs"
+    if norm_variance:
+        title = title + "\n* PC variance explained"
+    if pc_weights is not None:
+        title = title + "\n* weights on PCs"
+    axs[0].set_title(title)
+
+    # Add additional panel for PC weights/explained variance
+    if bar_weights is not None:
+        axs[1].barh(np.arange(n_pcs)[::-1], bar_weights[::-1], align="center")
+        # Add axes & title
+        axs[1].set_title(bar_title)
+        axs[1].tick_params(axis="y", length=0)
+        # Resize to match image size
+        asp = abs(
+            (np.diff(axs[1].get_xlim())[0] / np.diff(axs[1].get_ylim())[0])
+            / (np.diff(axs[0].get_xlim())[0] / np.diff(axs[0].get_ylim())[0])
+            / (width_ratio[1] / width_ratio[0])
+        )
+        axs[1].set_aspect(asp)
+
+    plt.savefig(
+        ".".join([pdf_prefix, "feature_importance", "pdf"]),
+        format="pdf",
+        bbox_inches="tight",
+    )

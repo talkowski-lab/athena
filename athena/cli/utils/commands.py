@@ -10,6 +10,7 @@
 
 
 import click
+import numpy as np
 from athena import utils, mutrate, dosage
 
 
@@ -250,6 +251,43 @@ def featurestats(bed, outfile, skip_cols, trans_tsv, log_transform, sqrt_transfo
                       exp_transform, square_transform, boxcox_transform, maxfloat)
 
 
+# Plot feature importances
+@click.command(name='feature-importance')
+@click.argument('pca', type=click.Path(exists=True))
+@click.argument('pdf_prefix')
+@click.option('--norm-variance', is_flag=True, default=False, 
+              help='Normalize by PC explained variance.')
+@click.option('--abs', 'abs_val', is_flag=True, default=False, 
+              help='Display absolute value of weights.')
+@click.option('--pc-weights', 'pc_weights_in', default=None, type=str,
+              help='Path to .txt file holding additional weights ' +
+              'on PCs to normalize by, e.g. trained model weights. Each row ' +
+              'should hold one weight. If fewer PCs in text file than PCA model, ' +
+              'the plot will be truncated to the PCs in file.')
+def featureimportance(pca, pdf_prefix, norm_variance, abs_val, pc_weights_in):
+    """
+    Plot raw feature importances through PCs
+    """
+
+    # Load eigenbins PCA model
+    _, _, _, pca, _, _, _ = mutrate.eigenbins.load_model_params(pca)
+
+    # If optioned, read in additional weights
+    pc_weights = None
+    if pc_weights_in is not None:
+        pc_weights = np.loadtxt(pc_weights_in)
+        # Check for valid number of weights compared to PCA model
+        n_pcs = pca.components_.shape[0]
+        n_pc_weights = pc_weights.shape[0]
+        if n_pc_weights > n_pcs:
+            err = (
+                'INPUT ERROR: Number of supplied PC weights ({0}) is greater ' + \
+                'than number of PCs in PCA model ({1}).'
+            )
+            exit(err.format(n_pc_weights, n_pcs))
+    utils.feature_importance(pca, pdf_prefix, norm_variance, abs_val, pc_weights)
+
+
 # Intersect SVs and bins (or BED/GTF)
 @click.command(name='count-sv')
 @click.argument('sv', type=click.Path(exists=True))
@@ -410,4 +448,3 @@ def pairbins(bins, all_bins, outfile, max_dist, exclusion_list, excl_buffer,
   """
   utils.pair_bins(bins, all_bins, outfile, max_dist, exclusion_list, excl_buffer, 
                   annotate_dist, sort_features, annotate_absdiff, maxfloat, bgzip)
-
