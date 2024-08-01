@@ -270,7 +270,7 @@ def featureimportance(pca, pdf_prefix, norm_variance, abs_val, pc_weights_in):
     """
 
     # Load eigenbins PCA model
-    _, _, _, pca, _, _, _ = mutrate.eigenbins.load_model_params(pca)
+    feature_names, _, _, _, pca, _, _, _ = mutrate.eigenbins.load_model_params(pca)
 
     # If optioned, read in additional weights
     pc_weights = None
@@ -285,7 +285,8 @@ def featureimportance(pca, pdf_prefix, norm_variance, abs_val, pc_weights_in):
                 'than number of PCs in PCA model ({1}).'
             )
             exit(err.format(n_pc_weights, n_pcs))
-    utils.feature_importance(pca, pdf_prefix, norm_variance, abs_val, pc_weights)
+    utils.feature_importance(pca, feature_names, pdf_prefix, norm_variance,
+                             abs_val, pc_weights)
 
 
 # Intersect SVs and bins (or BED/GTF)

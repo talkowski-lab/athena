@@ -63,7 +63,7 @@ def feature_hists(bed, png_prefix, skip_cols=3, log_transform=None,
         plt.savefig('.'.join([png_prefix, plot_title, 'png']), format='png')
 
 
-def feature_importance(pca, pdf_prefix, norm_variance=False,
+def feature_importance(pca, feature_names, pdf_prefix, norm_variance=False,
                        abs_val=False, pc_weights=None):
     """
     Plot matrix of raw feature importances through PCs
@@ -110,45 +110,6 @@ def feature_importance(pca, pdf_prefix, norm_variance=False,
         colors = "bwr"
         col_min = -np.max(abs(weights))
         col_max = np.max(abs(weights))
-
-    feature_names = [
-        "distance",
-        "ENCFF177EPU_ovary_total_RNAseq_min",
-        "ENCFF177EPU_ovary_total_RNAseq_max",
-        "ENCFF177EPU_ovary_total_RNAseq_absdiff",
-        "ENCFF254YHN_testis_total_RNAseq_min",
-        "ENCFF254YHN_testis_total_RNAseq_max",
-        "ENCFF254YHN_testis_total_RNAseq_absdiff",
-        "ENCFF423JSR_testis_ATACseq_min",
-        "ENCFF423JSR_testis_ATACseq_max",
-        "ENCFF423JSR_testis_ATACseq_absdiff",
-        "ENCFF053RTV_ovary_ATACseq_min",
-        "ENCFF053RTV_ovary_ATACseq_max",
-        "ENCFF053RTV_ovary_ATACseq_absdiff",
-        "segdup_coverage_min",
-        "segdup_coverage_max",
-        "segdup_coverage_absdiff",
-        "repeatmasker_count_min",
-        "repeatmasker_count_max",
-        "repeatmasker_count_absdiff",
-        "repeatmasker_sine_coverage_min",
-        "repeatmasker_sine_coverage_max",
-        "repeatmasker_sine_coverage_absdiff",
-        "common_SNP_count_min",
-        "common_SNP_count_max",
-        "common_SNP_count_absdiff",
-        "pct_gc_min",
-        "pct_gc_max",
-        "pct_gc_absdiff",
-        "snv_mu_min",
-        "snv_mu_max",
-        "snv_mu_absdiff",
-        "selfchain_pair_cov",
-        "segdup_fwd_pair_cov",
-        "segdup_rev_pair_cov",
-        "longest_fwd_kmer_100pct_identity",
-        "longest_rev_kmer_100pct_identity",
-    ]
 
     plot_cols = 2 if bar_weights is not None else 1
     width_ratio = [3, 1] if bar_weights is not None else [1]
