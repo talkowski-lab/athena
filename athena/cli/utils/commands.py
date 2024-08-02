@@ -259,12 +259,17 @@ def featurestats(bed, outfile, skip_cols, trans_tsv, log_transform, sqrt_transfo
               help='Normalize by PC explained variance.')
 @click.option('--abs', 'abs_val', is_flag=True, default=False, 
               help='Display absolute value of weights.')
+@click.option('--sort-features', is_flag=True, default=False, 
+              help='Sort features according to highest weight in matrix.')
+@click.option('--sort-pcs', is_flag=True, default=False, 
+              help='Sort PCs according to highest weight in matrix.')
 @click.option('--pc-weights', 'pc_weights_in', default=None, type=str,
               help='Path to .txt file holding additional weights ' +
               'on PCs to normalize by, e.g. trained model weights. Each row ' +
               'should hold one weight. If fewer PCs in text file than PCA model, ' +
               'the plot will be truncated to the PCs in file.')
-def featureimportance(pca, pdf_prefix, norm_variance, abs_val, pc_weights_in):
+def featureimportance(pca, pdf_prefix, norm_variance, abs_val, sort_features,
+                      sort_pcs, pc_weights_in):
     """
     Plot raw feature importances through PCs
     """
@@ -286,7 +291,7 @@ def featureimportance(pca, pdf_prefix, norm_variance, abs_val, pc_weights_in):
             )
             exit(err.format(n_pc_weights, n_pcs))
     utils.feature_importance(pca, feature_names, pdf_prefix, norm_variance,
-                             abs_val, pc_weights)
+                             abs_val, sort_features, sort_pcs, pc_weights)
 
 
 # Intersect SVs and bins (or BED/GTF)

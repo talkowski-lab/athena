@@ -64,7 +64,8 @@ def feature_hists(bed, png_prefix, skip_cols=3, log_transform=None,
 
 
 def feature_importance(pca, feature_names, pdf_prefix, norm_variance=False,
-                       abs_val=False, pc_weights=None):
+                       abs_val=False, sort_features=False, sort_pcs=False,
+                       pc_weights=None):
     """
     Plot matrix of raw feature importances through PCs
     """
@@ -111,6 +112,19 @@ def feature_importance(pca, feature_names, pdf_prefix, norm_variance=False,
         col_min = -np.max(abs(weights))
         col_max = np.max(abs(weights))
 
+    # If optioned, reorder rows and columns according to weights
+    feature_labels = feature_names
+    pc_labels = np.arange(n_pcs) + 1
+    if sort_features:
+        col_idx = weights.max(axis=0).argsort()[::-1]
+        weights = weights[:, col_idx]
+        feature_labels = [feature_labels[i] for i in col_idx]
+    if sort_pcs:
+        row_idx = weights.max(axis=1).argsort()[::-1]
+        weights = weights[row_idx, :]
+        pc_labels = [pc_labels[i] for i in row_idx]
+
+    # Set plot dimensions
     plot_cols = 2 if bar_weights is not None else 1
     width_ratio = [3, 1] if bar_weights is not None else [1]
     fig, axs = plt.subplots(
@@ -125,9 +139,9 @@ def feature_importance(pca, feature_names, pdf_prefix, norm_variance=False,
     axs[0].imshow(weights, cmap=colors, vmin=col_min, vmax=col_max)
 
     # Replace x-labels with feature names
-    axs[0].set_xticks(np.arange(len(feature_names)), feature_names)
+    axs[0].set_xticks(np.arange(len(feature_labels)), labels=feature_labels)
     axs[0].tick_params(axis="x", labelrotation=90)
-    axs[0].set_yticks(np.arange(n_pcs), labels=np.arange(n_pcs) + 1)
+    axs[0].set_yticks(np.arange(len(pc_labels)), labels=pc_labels)
 
     # Add axes & title
     axs[0].set_xlabel("Raw features")
@@ -141,7 +155,13 @@ def feature_importance(pca, feature_names, pdf_prefix, norm_variance=False,
 
     # Add additional panel for PC weights/explained variance
     if bar_weights is not None:
-        axs[1].barh(np.arange(n_pcs)[::-1], bar_weights[::-1], align="center")
+        if sort_pcs:
+            bar_weights = bar_weights[row_idx]
+        # Reverse bar weight order as they are plotted from bottom to top
+        axs[1].barh(
+            np.arange(len(pc_labels))[::-1], bar_weights[::-1],
+            align="center"
+        )
         # Add axes & title
         axs[1].set_title(bar_title)
         axs[1].tick_params(axis="y", length=0)
