@@ -432,7 +432,7 @@ def mutrain(training_data, config, model_class, model_out, stats_out, weights_ou
     Train mutation rate model
     """
 
-    # All hyperparamters are passed to mu_train() as a dict
+    # All hyperparameters are passed to mu_train() as a dict
     # Hyperparameters are loaded from --config .json if provided, otherwise are
     # inferred based on command-line arguments
     hypers = {'model_class' : model_class,
@@ -448,10 +448,10 @@ def mutrain(training_data, config, model_class, model_out, stats_out, weights_ou
     if config is not None:
       with open(config) as cfile:
         hypers.update(json.load(cfile))
-    if (model_class not in ["logit"]) and (weights_out is not None):       
+    if (hypers["model_class"] not in ["logit"]) and (weights_out is not None):       
         err = 'INPUT ERROR: Model class {0} does not have single layer of ' + \
               'linear weights to output to {1}.'
-        exit(err.format(model_class, weights_out))
+        exit(err.format(hypers["model_class"], weights_out))
 
     mutrate.mu_train(training_data, hypers, model_out, stats_out, weights_out,
                      cal_out, maxfloat, quiet)
