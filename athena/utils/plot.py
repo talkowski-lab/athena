@@ -65,7 +65,8 @@ def feature_hists(bed, png_prefix, skip_cols=3, log_transform=None,
 
 def feature_importance(pca, feature_names, pdf_prefix, norm_variance=False,
                        abs_val=False, sort_features=False, sort_pcs=False,
-                       pc_weights=None):
+                       pc_weights=None, title=None, ordered_feature_labels=None,
+                       ordered_pc_labels=None):
     """
     Plot matrix of raw feature importances through PCs
     """
@@ -112,17 +113,28 @@ def feature_importance(pca, feature_names, pdf_prefix, norm_variance=False,
         col_min = -np.max(abs(weights))
         col_max = np.max(abs(weights))
 
-    # If optioned, reorder rows and columns according to weights
-    feature_labels = feature_names
+    # If optioned, reorder feature columns
+    feature_labels = np.array(feature_names)
+    col_idxs = np.arange(weights.shape[1])
+    if ordered_feature_labels:
+        fl_sorted_idxs = np.argsort(feature_labels)
+        col_idxs = fl_sorted_idxs[
+            np.searchsorted(feature_labels[fl_sorted_idxs], ordered_feature_labels)
+        ]
+    elif sort_features:
+        col_idxs = weights.max(axis=0).argsort()[::-1]
+    weights = weights[:, col_idxs]
+    feature_labels = feature_labels[col_idxs]
+
+    # If optioned, reorder PC rows
     pc_labels = np.arange(n_pcs) + 1
-    if sort_features:
-        col_idx = weights.max(axis=0).argsort()[::-1]
-        weights = weights[:, col_idx]
-        feature_labels = [feature_labels[i] for i in col_idx]
-    if sort_pcs:
-        row_idx = weights.max(axis=1).argsort()[::-1]
-        weights = weights[row_idx, :]
-        pc_labels = [pc_labels[i] for i in row_idx]
+    row_idxs = np.arange(weights.shape[0])
+    if ordered_pc_labels:
+        row_idxs = np.array(ordered_pc_labels) - 1
+    elif sort_pcs:
+        row_idxs = weights.max(axis=1).argsort()[::-1]
+    weights = weights[row_idxs, :]
+    pc_labels = pc_labels[row_idxs]
 
     # Set plot dimensions
     plot_cols = 2 if bar_weights is not None else 1
@@ -146,17 +158,18 @@ def feature_importance(pca, feature_names, pdf_prefix, norm_variance=False,
     # Add axes & title
     axs[0].set_xlabel("Raw features")
     axs[0].set_ylabel("PCs")
-    title = "Raw feature weights in PCs"
-    if norm_variance:
-        title = title + "\n* PC variance explained"
-    if pc_weights is not None:
-        title = title + "\n* weights on PCs"
+    if not title:
+        title = "Raw feature weights in PCs"
+        if norm_variance:
+            title = title + "\n* PC variance explained"
+        if pc_weights is not None:
+            title = title + "\n* weights on PCs"
     axs[0].set_title(title)
 
     # Add additional panel for PC weights/explained variance
     if bar_weights is not None:
         if sort_pcs:
-            bar_weights = bar_weights[row_idx]
+            bar_weights = bar_weights[row_idxs]
         # Reverse bar weight order as they are plotted from bottom to top
         axs[1].barh(
             np.arange(len(pc_labels))[::-1], bar_weights[::-1],

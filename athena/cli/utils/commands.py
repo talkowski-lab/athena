@@ -268,30 +268,78 @@ def featurestats(bed, outfile, skip_cols, trans_tsv, log_transform, sqrt_transfo
               'on PCs to normalize by, e.g. trained model weights. Each row ' +
               'should hold one weight. If fewer PCs in text file than PCA model, ' +
               'the plot will be truncated to the PCs in file.')
+@click.option('--title', default=None, type=str,
+              help='Plot title.')
+@click.option('--feature-order-tsv', default=None, help='TSV with feature labels ' + 
+              'to order x-axis by from left to right. All feature labels must be ' + 
+              'accounted for and may not contain duplicates. Supersedes ' + 
+              '--sort-features.')
+@click.option('--pc-order-tsv', default=None, help='TSV with PC numbers to order ' +
+              'y-axis by from top to bottom. All PCs must be accounted for. ' +
+              'Supersedes --sort-pcs.')
 def featureimportance(pca, pdf_prefix, norm_variance, abs_val, sort_features,
-                      sort_pcs, pc_weights_in):
+                      sort_pcs, pc_weights_in, title, feature_order_tsv,
+                      pc_order_tsv):
     """
     Plot raw feature importances through PCs
     """
 
     # Load eigenbins PCA model
     feature_names, _, _, _, pca, _, _, _ = mutrate.eigenbins.load_model_params(pca)
+    n_pcs = pca.components_.shape[0]
 
     # If optioned, read in additional weights
     pc_weights = None
     if pc_weights_in is not None:
         pc_weights = np.loadtxt(pc_weights_in)
         # Check for valid number of weights compared to PCA model
-        n_pcs = pca.components_.shape[0]
         n_pc_weights = pc_weights.shape[0]
         if n_pc_weights > n_pcs:
-            err = (
-                'INPUT ERROR: Number of supplied PC weights ({0}) is greater ' + \
-                'than number of PCs in PCA model ({1}).'
+            wt_gt_pc_err = (
+                "INPUT ERROR: Number of supplied PC weights ({0}) is greater " + \
+                "than number of PCs in PCA model ({1})."
             )
-            exit(err.format(n_pc_weights, n_pcs))
+            exit(wt_gt_pc_err.format(n_pc_weights, n_pcs))
+
+    # If optioned, read in PCs to order by
+    if pc_order_tsv:
+        ordered_pc_labels = []
+        with open(pc_order_tsv) as pt:
+            ordered_pc_labels = [l.rstrip() for l in pt]
+            try:
+                ordered_pc_labels = [int(label) for label in ordered_pc_labels]
+            except ValueError:
+                exit("INPUT ERROR: Supplied PCs to order by are not integers.")
+        if sorted(ordered_pc_labels) != list(range(1, n_pcs + 1)):
+            pc_order_err = (
+                "INPUT ERROR: Supplied PCs to order by are not equal to PCs " + \
+                "in PCA model (integers from 1 to {0})."
+            )
+            exit(pc_order_err.format(n_pcs))
+    else:
+        ordered_pc_labels = None
+
+    # If optioned, read in features to order by
+    if feature_order_tsv:
+        ordered_feature_labels = []
+        with open(feature_order_tsv) as ft:
+            ordered_feature_labels = [l.rstrip() for l in ft]
+        if sorted(ordered_feature_labels) != sorted(feature_names):
+            exit(
+                "INPUT ERROR: Supplied feature labels to order by are not " + \
+                "equal to feature labels in PCA model."
+            )
+        if len(set(ordered_feature_labels)) < len(ordered_feature_labels):
+            exit(
+                "INPUT ERROR: Supplied feature labels to order by cannot contain " + \
+                "duplicates."
+            )
+    else:
+        ordered_feature_labels = None
+
     utils.feature_importance(pca, feature_names, pdf_prefix, norm_variance,
-                             abs_val, sort_features, sort_pcs, pc_weights)
+                             abs_val, sort_features, sort_pcs, pc_weights, title,
+                             ordered_feature_labels, ordered_pc_labels)
 
 
 # Intersect SVs and bins (or BED/GTF)
