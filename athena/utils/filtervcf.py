@@ -76,7 +76,7 @@ def filter_vcf(
         chroms = [c for c in chroms if c not in xchroms]
     if svtypes is not None:
         if "SVTYPE" not in header.info.keys():
-            sys.exit(
+            exit(
                 "SVTYPE filtering was specified, but input VCF "
                 + "does not have SVTYPE entry in INFO."
             )
@@ -106,7 +106,7 @@ def filter_vcf(
                     "Hardy-Weinberg filtering not possible due to "
                     + "missing {0} in VCF INFO"
                 )
-                sys.exit(error_message.format(key))
+                exit(error_message.format(key))
 
     # Iterate over vcf & filter records
     for record in invcf.fetch():
