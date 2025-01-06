@@ -500,14 +500,14 @@ def mupredict(pairs, model_pkl, outfile, raw_mu, keep_features, maxfloat, bgzip)
               'to report. [default: 10e-50]')
 @click.option('--maxfloat', type=int, default=8, 
               help='Maximum precision of floating-point values. [default: 8]')
-@click.option('-z', '--gzip', is_flag=True, default=False, 
-              help='Compress output with gzip')
+@click.option('-z', '--bgzip', is_flag=True, default=False, 
+              help='Compress output with bgzip')
 def muquery(pairs, query, outfile, group_by, ovr_frac, raw_mu_in, raw_mu_out, 
-            epsilon, maxfloat, gzip):
+            epsilon, maxfloat, bgzip):
     """
     Query a mutation rate matrix
     """
 
     mutrate.mu_query(pairs, query, outfile, group_by, ovr_frac, raw_mu_in, 
-                     raw_mu_out, epsilon, maxfloat, gzip)
+                     raw_mu_out, epsilon, maxfloat, bgzip)
 

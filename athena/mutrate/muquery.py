@@ -10,7 +10,7 @@ Query a mutation rate matrix
 
 
 from os import path
-from athena.utils.misc import determine_filetype, check_contig_naming_scheme
+from athena.utils.misc import determine_filetype, check_contig_naming_scheme, bgzip as bgz
 from athena.utils.dfutils import float_cleanup
 import re
 import pybedtools as pbt
@@ -39,7 +39,7 @@ def _get_query_entity_name(feature, query_group_by):
 
 
 def mu_query(pairs, query, outfile, query_group_by, ovr_frac, raw_mu_in, 
-             raw_mu_out, epsilon, maxfloat, gzip):
+             raw_mu_out, epsilon, maxfloat, bgzip):
     """
     Query a mutation rate matrix
     """
@@ -82,13 +82,18 @@ def mu_query(pairs, query, outfile, query_group_by, ovr_frac, raw_mu_in,
                 query_results_dfs[query_name] = pd.DataFrame(columns=qres_columns)
 
             # Query mutation rate matrix
+            # Format query segment as string
             qstr = '{}:{}-{}'.format(qint.chrom, qint.start, qint.end)
+            # Get bin pair hits for query segment in mutation rate matrix
             qhits = [i for i in mutrates.fetch(qstr)]
 
             # Enforce minimum overlap fraction, if optioned
             if ovr_frac is not None:
+                # Format bin pair hits as BedTool object
                 qres_bt = pbt.BedTool('\n'.join(qhits), from_string=True)
+                # Format query segment as BedTool object
                 qint_bt = pbt.BedTool(re.sub('[\:-]', '\t', qstr) + '\n', from_string=True)
+                # Filter to bin pairs intersecting query segment with minimum overlap fraction
                 qres_hits = qres_bt.intersect(qint_bt, F=ovr_frac, wa=True, u=True)
                 qres = qres_hits.to_dataframe(names=qres_columns)
 
@@ -114,9 +119,15 @@ def mu_query(pairs, query, outfile, query_group_by, ovr_frac, raw_mu_in,
     query_results = pd.DataFrame.from_dict(query_results, orient='index').reset_index()
     query_results.columns = '#query mu'.split()
     query_results = float_cleanup(query_results, maxfloat, 1)
-    
+
     # Write query to output file
     if outfile in 'stdout /dev/stdout -'.split():
         outfile = stdout
-    query_results.to_csv(outfile, header=True, index=False, sep='\t')
+        outfile_is_stdout = True
+    else:
+        outfile_is_stdout = False
+    query_results.to_csv(outfile, header=True, index=False, sep="\t")
 
+    # Bgzip query, if optioned
+    if bgzip and not outfile_is_stdout:
+        bgz(outfile)
