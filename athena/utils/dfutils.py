@@ -18,6 +18,7 @@ from sklearn.exceptions import DataConversionWarning
 import pandas as pd
 from os import path
 from athena.utils import bgzip as bgz
+from athena.utils.misc import determine_filetype
 import sys
 
 
@@ -259,7 +260,7 @@ def transform_df(bed_in, bed_out, first_column=3, log_transform=None,
                                fill_missing, warn, strict)
     out_df = pd.concat([df_bins, df_annos], axis=1)
 
-    if '.gz' in bed_out:
+    if 'compressed' in determine_filetype(bed_out):
         bed_out = path.splitext(bed_out)[0]
     out_df.to_csv(bed_out, sep='\t', na_rep='NA', index=False)
 

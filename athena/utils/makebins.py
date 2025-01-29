@@ -12,6 +12,7 @@ Segment a reference genome into uniform, sequential bins
 import pybedtools
 from os import path
 from athena.utils.misc import bgzip as bgz
+from athena.utils.misc import determine_filetype
 from athena.utils.exclusionbed import load_exclusion_bts
 
 
@@ -51,7 +52,7 @@ def make_bins(genome, binsize, outfile_all, outfile_train, stepsize,
         bins = _apply_exclusion_list(bins, exclusion_list_all, excl_buffer, excl_cov)
 
     # Save bins
-    if '.gz' in outfile_all:
+    if "compressed" in determine_filetype(outfile_all):
         outfile_all = path.splitext(outfile_all)[0]
     bins.saveas(outfile_all, trackline='\t'.join(['#chr','start','end']))
 
@@ -67,9 +68,9 @@ def make_bins(genome, binsize, outfile_all, outfile_train, stepsize,
             tbins = bins
 
         # Save training bins
-        if '.gz' in outfile_train:
+        if "compressed" in determine_filetype(outfile_train):
             outfile_train = path.splitext(outfile_train)[0]
         tbins.saveas(outfile_train, trackline='\t'.join(['#chr','start','end']))
-        
+
         if bgzip:
             bgz(outfile_train)

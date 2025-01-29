@@ -125,5 +125,11 @@ def mu_query(pairs, query, outfile, query_group_by, ovr_frac, raw_mu_in,
         outfile = stdout
         outfile_is_stdout = True
     else:
+        if "compressed" in determine_filetype(outfile):
+            outfile = path.splitext(outfile)[0]
         outfile_is_stdout = False
     query_results.to_csv(outfile, header=True, index=False, sep="\t")
+
+    # Bgzip query, if optioned
+    if bgzip and not outfile_is_stdout:
+        bgz(outfile)

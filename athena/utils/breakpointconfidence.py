@@ -60,7 +60,7 @@ def breakpoint_confidence(vcf, out, min_ci, overwrite, bgzip):
 
     # Open connection to input VCF
     if vcf in '- stdin'.split():
-        invcf = pysam.VariantFile(sys.stdin) 
+        invcf = pysam.VariantFile(stdin) 
     else:
         invcf = pysam.VariantFile(vcf)
     header = invcf.header
@@ -76,11 +76,13 @@ def breakpoint_confidence(vcf, out, min_ci, overwrite, bgzip):
 
     # Open connection to output VCF
     if out in '- stdout'.split():
-        outvcf = pysam.VariantFile(sys.stdout, 'w', header=header)
+        outvcf = pysam.VariantFile(stdout, 'w', header=header)
+        outfile_is_stdout = True
     else:
         if 'compressed' in determine_filetype(out):
             out = path.splitext(out)[0]
         outvcf = pysam.VariantFile(out, 'w', header=header)
+        outfile_is_stdout = False
 
     # Process each record
     for record in invcf.fetch():
@@ -89,6 +91,5 @@ def breakpoint_confidence(vcf, out, min_ci, overwrite, bgzip):
     outvcf.close()
 
     # Bgzip output VCF, if optioned
-    if bgzip:
+    if bgzip and not outfile_is_stdout:
         bgz(out)
-

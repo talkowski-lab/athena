@@ -117,7 +117,7 @@ def breakpointconfidence(vcf, out, min_ci, overwrite, bgzip):
               help='Step size of bins. [default: binsize]')
 @click.option('-x', '--exclusion-list-all', default=None, multiple=True,
               help='BED file of regions to exclude for all bins, based on bin ' +
-              'overlap. This may be specified multiple times.')
+              'overlap. If specified multiple times, separators must be consistent.')
 @click.option('--exclusion-list-training', 'exclusion_list_train', default=None, 
               multiple=True, help='BED file of regions to exclude for training ' +
               'bins, based on bin overlap. This may be specified multiple times.')

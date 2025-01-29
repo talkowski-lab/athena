@@ -184,6 +184,8 @@ def decompose_bins(bins, bins_outfile=None, parameters_outfile=None, precomp_mod
         out_df = dfutils.float_cleanup(pd.concat([df_bins, df_pcs], axis=1), 
                                        maxfloat, first_column)
         out_df.to_csv(bins_outfile, sep='\t', index=False)
+        if bgzip:
+            bgz(bins_outfile)
 
     # Save model for future use, if optioned
     if parameters_outfile is not None:
