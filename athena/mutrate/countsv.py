@@ -279,8 +279,3 @@ def count_sv_in_bins(sv_in, bins_in, outfile, paired, binsize, breakpoints,
         if 'compressed' in determine_filetype(outfile):
             outfile = path.splitext(outfile)[0]
     out_df.to_csv(outfile, sep='\t', header=True, index=False)
-
-    # Bgzip bins, if optioned
-    if bgzip and not outfile_is_stdout:
-        bgz(outfile)
-
