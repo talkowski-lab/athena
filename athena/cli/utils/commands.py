@@ -27,8 +27,13 @@ from athena import utils, mutrate, dosage
               '[default: exclude no chromosomes]')
 @click.option('--svtypes', default=None, 
               help='SV classes to include (comma-separated) [default: all SVs]')
-@click.option('-x', '--exclusion-list', default=None,
-              help='BED file of regions to exclude, based on SV overlap')
+@click.option('-x', '--exclusion-list', default=None, multiple=True,
+              help='BED file of regions to exclude based on pair span overlap. ' +
+              'If specified multiple times, separators must be consistent.')
+@click.option('--excl-buffer', 'excl_buffer', type=int, default=0,
+              help='Pad exclusion list intervals prior to intersection. If ' +
+              'multiple exclusion lists are specified, elements from each ' +
+              'exclusion list will be padded separately.')
 @click.option('--minAF', 'minAF', type=float, default=0, 
               help='Minimum allowed allele frequency [default: 0]')
 @click.option('--maxAF', 'maxAF', type=float, default=1.0, 
@@ -58,14 +63,14 @@ from athena import utils, mutrate, dosage
                    'filter records based on INFO. [default: Keep no other INFO]')
 @click.option('-z', '--bgzip', is_flag=True, default=False, 
               help='Compress output with bgzip')
-def filtervcf(vcf, out, chroms, xchroms, svtypes, exclusion_list, minAF, maxAF, 
-              minAC, maxAC, minAN, filters, minQUAL, maxQUAL, HWE, af_field, 
+def filtervcf(vcf, out, chroms, xchroms, svtypes, exclusion_list, excl_buffer, minAF,
+              maxAF, minAC, maxAC, minAN, filters, minQUAL, maxQUAL, HWE, af_field, 
               keep_infos, bgzip):
     """
     Filter an input VCF
     """
-    utils.filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list, 
-                     minAF, maxAF, minAC, maxAC, minAN, filters, 
+    utils.filter_vcf(vcf, out, chroms, xchroms, svtypes, exclusion_list,
+                     excl_buffer, minAF, maxAF, minAC, maxAC, minAN, filters, 
                      minQUAL, maxQUAL, HWE, list(af_field), keep_infos, bgzip)
 
 
@@ -478,7 +483,7 @@ def transform(bed_in, bed_out, skip_cols, trans_tsv, log_transform, sqrt_transfo
               help='Maximum distance to search for candidate pairs.')
 @click.option('-x', '--exclusion-list', default=None, multiple=True,
               help='BED file of regions to exclude based on pair span overlap. ' +
-              'This may be specified multiple times.')
+              'If specified multiple times, separators must be consistent.')
 @click.option('--excl-buffer', 'excl_buffer', type=int, default=0,
               help='Pad exclusion list intervals prior to intersection. If ' +
               'multiple exclusion lists are specified, elements from each ' +

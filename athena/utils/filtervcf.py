@@ -14,6 +14,7 @@ from sys import stdin, stdout, exit
 from os import path
 import pybedtools
 import numpy as np
+from athena.utils.exclusionbed import load_exclusion_bts
 from athena.utils.misc import bgzip as bgz
 from athena.utils.math import hwe_chisq
 
@@ -25,6 +26,7 @@ def filter_vcf(
     xchroms,
     svtypes,
     exclusion_list,
+    excl_buffer,
     minAF,
     maxAF,
     minAC,
@@ -84,8 +86,7 @@ def filter_vcf(
             svtypes = svtypes.split(",")
     if filters is not None:
         filters = filters.split(",")
-    if exclusion_list is not None:
-        bl = pybedtools.BedTool(exclusion_list)
+    xbt = load_exclusion_bts(exclusion_list, excl_buffer)
 
     # Raise warning if AF or AC are missing from VCF
     for key in af_fields + ["AC"]:
@@ -178,7 +179,7 @@ def filter_vcf(
     # Filter remaining records against exclusion_list
     if exclusion_list is not None:
         prebl_vcf = pybedtools.BedTool(out)
-        prebl_vcf.intersect(bl, header=True, v=True).saveas(out)
+        prebl_vcf.intersect(xbt, header=True, v=True).saveas(out)
 
     # Bgzip output VCF, if optioned
     if bgzip:
